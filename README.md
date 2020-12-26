@@ -1,1 +1,30 @@
 # locShare
+
+# Working principles:
+
+## Adding new node to Local Sharing Network
+
+A - first station with keys
+U - user
+N - new station
+I - invitation code
+P - public key of A
+p - private key of A
+S - group symmetric key
+g - diffie-hellman group
+a - diffie-hellman key for A
+n - diffie-hellman key for B
+
+1. A ---[I]---> U,                      [I - random invitation code]
+1. A ---[X1]---> broadcast -----> N,    [X1 - (P,g) encrypted with `I`]
+2. U ---[I]---> N
+3. N ---[X2]---> A,                     [X2 - g^a encrypted with `P`]
+4. A ---[X3]---> N,                     [g^b, X3 - symmetric key encrypted with g^(ab) and p]
+
+1. A sends random invitation code over broadcast
+1. .
+2. User types invitation code `I` into new station `N`
+3. Machine N sends its DH part to A
+4. Machine A sends secret key encrypted with common DH key and encrypts it with its private key `p`. N decrypts message with `P` and common DH key.
+
+
