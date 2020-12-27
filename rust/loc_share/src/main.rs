@@ -1,27 +1,21 @@
 use std::env;
 use std::str;
 use std::net::UdpSocket;
+mod udp_node;
 
 fn main() {
   let args: Vec<String> = env::args().collect();
   let buf = &[1,2,3,4,5];
+
+  let node = udp_node::UdpNode::new([192,168,0,105], [255,255,255,0]);
   if args.len() > 1 && args[1] == "send" {
     println!("sending broadcast");
-    send_broadcast(buf);
+    node.broadcast_message(buf, 5555);
   }
   else {
     println!("receiving broadcast");
     receive_broadcast();
   }
-}
-
-fn send_broadcast(buf: &[u8]) {
-  let broadcast_address = "0.0.0.0:0";
-  let socket = UdpSocket::bind(broadcast_address).expect("couldn't bind to address");
-  socket.set_broadcast(true).expect("set_broadcast");
-  println!("Broadcast: {:?}", socket.broadcast());
-  let addr = "192.168.0.255:5555";
-  socket.send_to(buf, addr).expect("couldn't send data");
 }
 
 fn receive_broadcast() {
