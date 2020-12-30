@@ -1,5 +1,6 @@
 use std::env;
 mod udp_node;
+mod crypto_node;
 
 fn main() {
   let args: Vec<String> = env::args().collect();
@@ -8,6 +9,7 @@ fn main() {
   let broadcast_addr = find_broadcast_addr(my_ip);
 
   let node = udp_node::UdpNode::new(my_ip, broadcast_addr);
+  let cnode = crypto_node::CryptoNode{prv: 0, pub_key: 0, sym: 0, ric: 0};
   let port = find_free_port();
   if args.len() > 1 && args[1] == "send" {
     println!("sending broadcast");

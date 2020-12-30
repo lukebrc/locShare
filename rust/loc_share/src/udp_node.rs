@@ -1,6 +1,8 @@
 use std::net::UdpSocket;
 use std::str;
 
+const MAX_MSG: usize = 32;
+
 pub struct UdpNode {
   ip_addr: [u8; 4],
   broadcast_addr: [u8; 4],
@@ -27,7 +29,7 @@ impl UdpNode {
   pub fn receive_broadcast(&self, port: u32) {
     let addr = UdpNode::make_ip_addr(self.ip_addr, port);
     let socket = UdpSocket::bind(addr).expect("couldn't bind to address");
-    let mut buf = [0; 10];
+    let mut buf = [0; MAX_MSG];
     let (bytes, src_addr) = socket.recv_from(&mut buf).expect("recv_from");
     let word = str::from_utf8(&buf).unwrap();
     println!("Received {} bytes: {:X?}", bytes, word);
