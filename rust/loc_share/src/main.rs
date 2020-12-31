@@ -10,7 +10,7 @@ fn main() {
   let broadcast_addr = find_broadcast_addr(my_ip);
 
   let unode = udp_node::UdpNode::new(my_ip, broadcast_addr);
-  let cnode = crypto_node::CryptoNode{prv: 0, pub_key: 0, sym: 0, ric: 0};
+  let cnode = crypto_node::CryptoNode::new();
   let client = node::Node{udp: unode, crypto: cnode};
 
   // let port = find_free_port();

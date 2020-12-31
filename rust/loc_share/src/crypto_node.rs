@@ -6,6 +6,7 @@ pub struct CryptoNode {
   pub sym: BigInt,
   pub ric: BigInt,
   //TODO: time of ric
+  pub g: BigInt,
 }
 
 impl CryptoNode {
@@ -23,6 +24,21 @@ impl CryptoNode {
   pub fn generate_encrypted_secret_message(&self, x2: &BigInt) -> BigInt {
     //TODO:
     return 3;
+  }
+
+  pub fn generate_dh_keys(&mut self) {
+    //TODO:
+    self.g = 7;
+  }
+
+  pub fn new() -> CryptoNode {
+    return CryptoNode{
+      prv: 0,
+      pub_key: 0,
+      sym: 0,
+      ric: 0,
+      g: 0,
+    }
   }
 
 }

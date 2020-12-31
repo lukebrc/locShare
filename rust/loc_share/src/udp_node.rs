@@ -6,6 +6,7 @@ const MAX_MSG: usize = 32;
 pub struct UdpNode {
   ip_addr: [u8; 4],
   broadcast_addr: [u8; 4],
+  socket: Option<UdpSocket>,
 }
 
 impl UdpNode {
@@ -14,22 +15,34 @@ impl UdpNode {
     UdpNode {
       ip_addr: ip_addr,
       broadcast_addr: broadcast_addr,
+      socket: Option::None,
     }
   }
 
-  pub fn broadcast_message(&self, buf: &[u8], port: u32) {
+  pub fn prepare_broadcast_socket(&mut self) {
+    println!("set_broadcast");
     let broadcast_address = "0.0.0.0:0";
-    let socket = UdpSocket::bind(broadcast_address).expect("couldn't bind to address");
-    socket.set_broadcast(true).expect("set_broadcast");
-    let addr = UdpNode::make_ip_addr(self.broadcast_addr, port);
-    println!("Broadcasting {} bytes on address: {}", buf.len(), addr);
-    socket.send_to(buf, addr).expect("couldn't send data");
+    let new_socket = UdpSocket::bind(broadcast_address).expect("couldn't bind to address");
+    new_socket.set_broadcast(true).expect("set_broadcast");
+    self.socket = Some(new_socket);
   }
 
-  pub fn receive_broadcast(&self, port: u32) -> String {
+  pub fn prepare_receiving_socket(&mut self, port: u32) {
     let addr = UdpNode::make_ip_addr(self.ip_addr, port);
-    let socket = UdpSocket::bind(addr).expect("couldn't bind to address");
+    let new_socket = UdpSocket::bind(addr).expect("couldn't bind to address");
+    self.socket = Some(new_socket);
+  }
+
+  pub fn broadcast_message(&self, buf: &[u8], port: u32) {
+    let addr = UdpNode::make_ip_addr(self.broadcast_addr, port);
+    println!("Broadcasting {} bytes on address: {}", buf.len(), addr);
+    self.socket.as_ref().unwrap().send_to(buf, addr).expect("couldn't send data");
+  }
+
+  pub fn receive_broadcast(&self) -> String {
+    println!("waiting for broadcast message");
     let mut buf = [0; MAX_MSG];
+    let socket = self.socket.as_ref().unwrap();
     let (bytes, src_addr) = socket.recv_from(&mut buf).expect("recv_from");
     let word = str::from_utf8(&buf[0..bytes]).unwrap();
     println!("Received {} bytes: {:X?}", bytes, word);
