@@ -31,7 +31,7 @@ impl UdpNode {
     let socket = UdpSocket::bind(addr).expect("couldn't bind to address");
     let mut buf = [0; MAX_MSG];
     let (bytes, src_addr) = socket.recv_from(&mut buf).expect("recv_from");
-    let word = str::from_utf8(&buf).unwrap();
+    let word = str::from_utf8(&buf[0..bytes]).unwrap();
     println!("Received {} bytes: {:X?}", bytes, word);
     println!("From {}", src_addr);
     return word.to_string();
