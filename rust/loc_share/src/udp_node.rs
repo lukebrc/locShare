@@ -26,7 +26,7 @@ impl UdpNode {
     socket.send_to(buf, addr).expect("couldn't send data");
   }
 
-  pub fn receive_broadcast(&self, port: u32) {
+  pub fn receive_broadcast(&self, port: u32) -> String {
     let addr = UdpNode::make_ip_addr(self.ip_addr, port);
     let socket = UdpSocket::bind(addr).expect("couldn't bind to address");
     let mut buf = [0; MAX_MSG];
@@ -34,6 +34,7 @@ impl UdpNode {
     let word = str::from_utf8(&buf).unwrap();
     println!("Received {} bytes: {:X?}", bytes, word);
     println!("From {}", src_addr);
+    return word.to_string();
   }
 
   fn make_ip_addr(ip_addr: [u8;4], port: u32) -> String {

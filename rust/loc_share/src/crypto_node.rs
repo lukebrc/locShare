@@ -1,4 +1,4 @@
-type BigInt = i128;
+pub type BigInt = i128;
 
 pub struct CryptoNode {
   pub prv: BigInt,
@@ -25,18 +25,4 @@ impl CryptoNode {
     return 3;
   }
 
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-
-  #[test]
-  fn add_new_node() {
-    let node = CryptoNode{prv: 0, pub_key: 0, sym: 0, ric: 0};
-    let new_node = CryptoNode{prv: 0, pub_key: 0, sym: 0, ric: 0};
-    let ric = node.generate_random_inv_code();
-
-    assert_eq!(node.sym, new_node.sym);
-  }
 }

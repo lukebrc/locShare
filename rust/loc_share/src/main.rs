@@ -1,6 +1,7 @@
 use std::env;
 mod udp_node;
 mod crypto_node;
+mod node;
 
 fn main() {
   let args: Vec<String> = env::args().collect();
@@ -8,17 +9,19 @@ fn main() {
   let my_ip = find_my_ip();
   let broadcast_addr = find_broadcast_addr(my_ip);
 
-  let node = udp_node::UdpNode::new(my_ip, broadcast_addr);
+  let unode = udp_node::UdpNode::new(my_ip, broadcast_addr);
   let cnode = crypto_node::CryptoNode{prv: 0, pub_key: 0, sym: 0, ric: 0};
-  let port = find_free_port();
-  if args.len() > 1 && args[1] == "send" {
-    println!("sending broadcast");
-    node.broadcast_message(buf, port);
-  }
-  else {
-    println!("receiving broadcast");
-    node.receive_broadcast(port);
-  }
+  let client = node::Node{udp: unode, crypto: cnode};
+
+  // let port = find_free_port();
+  // if args.len() > 1 && args[1] == "send" {
+  //   println!("sending broadcast");
+  //   unode.broadcast_message(buf, port);
+  // }
+  // else {
+  //   println!("receiving broadcast");
+  //   unode.receive_broadcast(port);
+  // }
 }
 
 fn find_my_ip() -> [u8; 4] {
