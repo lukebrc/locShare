@@ -1,6 +1,6 @@
 [package]
 name = "loc_share"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Lukasz Barcinski <lukasz.barcinski@enigma.com.pl>"]
 edition = "2018"
 

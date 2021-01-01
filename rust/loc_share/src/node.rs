@@ -1,8 +1,10 @@
+use crate::connection_process;
 use crate::udp_node;
 use crate::crypto_node;
 use crypto_node::BigInt;
 use crypto_node::CryptoNode;
 use udp_node::UdpNode;
+//use connection_process::ConnectionProcess;
 use std::thread;
 use std::sync::mpsc::channel;
 
@@ -28,14 +30,20 @@ impl Node {
   }
 
   // waits for encrypted invitation code and returns it
-  pub fn start_connecting_to_existing_node(&self, port: u32) -> (BigInt, BigInt) {
+  pub fn start_connecting_to_existing_node(&self, port: u32) -> connection_process::ConnectionProcess {
     let enc_pub_key: BigInt = self.receive_broadcast_number();
     let enc_g: BigInt = self.receive_broadcast_number();
     println!("Received encrypted pub_key: {}, g: {}", enc_pub_key, enc_g);
-    return (enc_pub_key, enc_g);
+    //TODO:
+    return connection_process::ConnectionProcess{
+      invitation_code: 0,
+      enc_pub_key: enc_pub_key,
+      enc_g: enc_g,
+    };
   }
 
   pub fn continue_connecting_to_node(&self, invitation_code: BigInt) {
+    
 
   }
 
@@ -62,11 +70,7 @@ mod tests {
 
   #[test]
   fn add_new_node() {
-    static unode2: UdpNode = UdpNode::new([127,0,0,1], [127,0,0,1]);
-    static cnode2: CryptoNode = CryptoNode::new();
     static mut new_node: Node = Node{
-      //udp: unode2,
-      //crypto: cnode2,
       udp: UdpNode::new([127,0,0,1], [127,0,0,1]),
       crypto: CryptoNode::new(),
     };
@@ -91,8 +95,8 @@ mod tests {
   fn send_invitation_code(mut old_node: Node, new_node: &'static Node) -> (BigInt, BigInt, BigInt) {
     let (sender, receiver) = channel();
     let child_thread = thread::spawn(move || {
-      let encrypted_ric = new_node.start_connecting_to_existing_node(DEFAULT_PORT);
-      sender.send(encrypted_ric).unwrap();
+      let conn_process = new_node.start_connecting_to_existing_node(DEFAULT_PORT);
+      sender.send(conn_process).unwrap();
     });
 
     let ric = old_node.invite_new_user();
