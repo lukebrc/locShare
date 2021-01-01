@@ -11,7 +11,7 @@ pub struct UdpNode {
 
 impl UdpNode {
   
-  pub fn new(ip_addr: [u8; 4], broadcast_addr: [u8; 4]) -> UdpNode {
+  pub const fn new(ip_addr: [u8; 4], broadcast_addr: [u8; 4]) -> UdpNode {
     UdpNode {
       ip_addr: ip_addr,
       broadcast_addr: broadcast_addr,

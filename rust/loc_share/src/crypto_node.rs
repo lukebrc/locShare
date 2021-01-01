@@ -31,7 +31,7 @@ impl CryptoNode {
     self.g = 7;
   }
 
-  pub fn new() -> CryptoNode {
+  pub const fn new() -> CryptoNode {
     return CryptoNode{
       prv: 0,
       pub_key: 0,
