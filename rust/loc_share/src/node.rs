@@ -1,10 +1,10 @@
-use crate::connection_process;
 use crate::udp_node;
 use crate::crypto_node;
+use crate::connection_process;
 use crypto_node::BigInt;
 use crypto_node::CryptoNode;
 use udp_node::UdpNode;
-//use connection_process::ConnectionProcess;
+use connection_process::ConnectionProcess;
 use std::thread;
 use std::sync::mpsc::channel;
 
@@ -30,21 +30,20 @@ impl Node {
   }
 
   // waits for encrypted invitation code and returns it
-  pub fn start_connecting_to_existing_node(&self, port: u32) -> connection_process::ConnectionProcess {
+  pub fn start_connecting_to_existing_node(&self, port: u32) -> ConnectionProcess {
     let enc_pub_key: BigInt = self.receive_broadcast_number();
     let enc_g: BigInt = self.receive_broadcast_number();
     println!("Received encrypted pub_key: {}, g: {}", enc_pub_key, enc_g);
-    //TODO:
-    return connection_process::ConnectionProcess{
+    return ConnectionProcess{
       invitation_code: 0,
       enc_pub_key: enc_pub_key,
       enc_g: enc_g,
     };
   }
 
-  pub fn continue_connecting_to_node(&self, invitation_code: BigInt) {
-    
-
+  pub fn continue_connecting_to_node(&self, conn_proc: &mut ConnectionProcess, invitation_code: BigInt) {
+    conn_proc.invitation_code = invitation_code;
+    // todo: decipher enc_pub_key and enc_g with invitation_code
   }
 
   pub fn new(udp: udp_node::UdpNode, crypto: crypto_node::CryptoNode) -> Node {
@@ -85,14 +84,14 @@ mod tests {
     old_node.udp.prepare_broadcast_socket();
     unsafe {
       new_node.udp.prepare_receiving_socket(5555);
-      let (inv_code, enc_pub_key, enc_g) = send_invitation_code(old_node, &new_node);
-      new_node.continue_connecting_to_node(inv_code);
+      let (mut conn_proc, inv_code) = send_invitation_code(old_node, &new_node);
+      new_node.continue_connecting_to_node(&mut conn_proc, inv_code);
     }
 
     //assert_eq!(old_node.crypto.sym, new_node.crypto.sym);
   }
 
-  fn send_invitation_code(mut old_node: Node, new_node: &'static Node) -> (BigInt, BigInt, BigInt) {
+  fn send_invitation_code(mut old_node: Node, new_node: &'static Node) -> (ConnectionProcess, BigInt) {
     let (sender, receiver) = channel();
     let child_thread = thread::spawn(move || {
       let conn_process = new_node.start_connecting_to_existing_node(DEFAULT_PORT);
@@ -100,8 +99,8 @@ mod tests {
     });
 
     let ric = old_node.invite_new_user();
-    let (enc_pub_key, enc_g)= receiver.recv().unwrap();
+    let conn_process2 = receiver.recv().unwrap();
     child_thread.join().unwrap();
-    return (ric, enc_pub_key, enc_g);
+    return (conn_process2, ric);
   }
 }
