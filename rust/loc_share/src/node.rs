@@ -24,7 +24,7 @@ impl Node {
     let ric: BigInt = self.crypto.generate_random_inv_code();
     self.crypto.generate_dh_keys();
     self.udp.prepare_broadcast_socket();
-    self.send_number(self.crypto.pub_key);
+    self.send_number(self.crypto.get_pub_key_pem());
     self.send_number(self.crypto.g);
     return ric;
   }
