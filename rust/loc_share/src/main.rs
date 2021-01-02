@@ -11,7 +11,7 @@ fn main() {
   let broadcast_addr = find_broadcast_addr(my_ip);
 
   let unode = udp_node::UdpNode::new(my_ip, broadcast_addr);
-  let cnode = crypto_node::CryptoNode::new();
+  let cnode = crypto_node::CryptoNode::generate();
   let client = node::Node{udp: unode, crypto: cnode};
 
   // let port = find_free_port();

@@ -7,6 +7,8 @@ use udp_node::UdpNode;
 use connection_process::ConnectionProcess;
 use std::thread;
 use std::sync::mpsc::channel;
+use std::sync::Mutex;
+
 
 const DEFAULT_PORT: u32 = 5555;
 
@@ -17,20 +19,27 @@ pub struct Node {
 
 impl Node {
 
+  pub fn new(udp: udp_node::UdpNode, crypto: crypto_node::CryptoNode) -> Node {
+    return Node{udp: udp, crypto: crypto};
+  }
+
   // sends encrypted invitation code over broadcast
   // and returns unencrypted invitation code
   pub fn invite_new_user(&mut self) -> BigInt {
     println!("invite_new_user");
-    let ric: BigInt = self.crypto.generate_random_inv_code();
+    let ric: BigInt = self.crypto.generate_random_invitation_code();
     self.crypto.generate_dh_keys();
     self.udp.prepare_broadcast_socket();
-    self.send_number(self.crypto.get_pub_key_pem());
+    let pub_key_der: Vec<u8> = self.crypto.get_pub_key_der();
+    //todo: encrypt pub_key_der
+    self.send_message(pub_key_der);
     self.send_number(self.crypto.g);
     return ric;
   }
 
   // waits for encrypted invitation code and returns it
   pub fn start_connecting_to_existing_node(&self, port: u32) -> ConnectionProcess {
+    println!("start_connecting_to_existing_node");
     let enc_pub_key: BigInt = self.receive_broadcast_number();
     let enc_g: BigInt = self.receive_broadcast_number();
     println!("Received encrypted pub_key: {}, g: {}", enc_pub_key, enc_g);
@@ -42,18 +51,22 @@ impl Node {
   }
 
   pub fn continue_connecting_to_node(&self, conn_proc: &mut ConnectionProcess, invitation_code: BigInt) {
+    println!("continue_connecting_to_node");
     conn_proc.invitation_code = invitation_code;
     // todo: decipher enc_pub_key and enc_g with invitation_code
-  }
-
-  pub fn new(udp: udp_node::UdpNode, crypto: crypto_node::CryptoNode) -> Node {
-    return Node{udp: udp, crypto: crypto};
   }
 
   fn send_number(&self, num: BigInt) {
     println!("Sending number: {}", num);
     let buf: String = num.to_string();
     self.udp.broadcast_message(buf.as_bytes(), DEFAULT_PORT);
+  }
+
+  fn send_message(&self, msg: Vec<u8>) {
+    println!("Sending message: {:?}", msg);
+    //TODO:
+    //let buf: String = msg.to_string();
+    //self.udp.broadcast_message(buf.as_bytes(), DEFAULT_PORT);
   }
 
   fn receive_broadcast_number(&self) -> BigInt {
@@ -69,38 +82,44 @@ mod tests {
 
   #[test]
   fn add_new_node() {
-    static mut new_node: Node = Node{
-      udp: UdpNode::new([127,0,0,1], [127,0,0,1]),
-      crypto: CryptoNode::new(),
-    };
+    let cnode: CryptoNode = CryptoNode::generate();
+    let mut new_node: Node = Node::new(
+      UdpNode::new([127,0,0,1], [127,0,0,1]),
+      cnode,
+    );
 
     let uold_node = udp_node::UdpNode::new([127,0,0,1], [127,0,0,1]);
-    let cold_node = crypto_node::CryptoNode::new();
+    let cold_node = crypto_node::CryptoNode::generate();
     let mut old_node: Node = Node{
         udp: uold_node,
         crypto: cold_node,
     };
 
     old_node.udp.prepare_broadcast_socket();
-    unsafe {
-      new_node.udp.prepare_receiving_socket(5555);
-      let (mut conn_proc, inv_code) = send_invitation_code(old_node, &new_node);
-      new_node.continue_connecting_to_node(&mut conn_proc, inv_code);
+    new_node.udp.prepare_receiving_socket(5555);
+
+    let mut conn_process2 = ConnectionProcess::new();
+    let mut ric = 0;
+
+    let (sender, receiver) = channel();
+    let mutex = Mutex::new(new_node);
+    let counter = std::sync::Arc::new(mutex);
+    {
+      println!("counter.clone");
+      let counter = counter.clone();
+      let child_thread = thread::spawn(move || {
+        let node_ref = counter.lock().unwrap();
+        let conn_process = node_ref.start_connecting_to_existing_node(DEFAULT_PORT);
+        sender.send(conn_process).unwrap();
+      });
+      ric = old_node.invite_new_user();
+      conn_process2 = receiver.recv().unwrap();
+      println!("Waiting for thread join");
+      child_thread.join().unwrap();
     }
 
-    //assert_eq!(old_node.crypto.sym, new_node.crypto.sym);
+    let node_ref2 = counter.lock().unwrap();
+    node_ref2.continue_connecting_to_node(&mut conn_process2, ric);
   }
 
-  fn send_invitation_code(mut old_node: Node, new_node: &'static Node) -> (ConnectionProcess, BigInt) {
-    let (sender, receiver) = channel();
-    let child_thread = thread::spawn(move || {
-      let conn_process = new_node.start_connecting_to_existing_node(DEFAULT_PORT);
-      sender.send(conn_process).unwrap();
-    });
-
-    let ric = old_node.invite_new_user();
-    let conn_process2 = receiver.recv().unwrap();
-    child_thread.join().unwrap();
-    return (conn_process2, ric);
-  }
 }

@@ -9,9 +9,16 @@ pub struct ConnectionProcess {
 
 impl ConnectionProcess {
 
-  pub fn setInvitationCode(&self, ic: &[u8]) {
-    //TODO:
-
+  pub const fn new() -> ConnectionProcess {
+    ConnectionProcess{
+      invitation_code: 0,
+      enc_pub_key: 0,
+      enc_g: 0,
+    }
   }
+  // pub fn setInvitationCode(&self, ic: &[u8]) {
+  //   //TODO:
+
+  // }
 
 }
