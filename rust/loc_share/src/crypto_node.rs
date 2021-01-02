@@ -3,6 +3,8 @@ use openssl::rsa::{Rsa, Padding};
 use openssl::pkey::Private;
 use openssl::aes::{AesKey, aes_ige};
 use openssl::symm::Mode;
+extern crate hex;
+use hex::{FromHex, ToHex};
 
 pub type BigInt = i128;
 
@@ -66,34 +68,41 @@ impl CryptoNode {
 
 }
 
-// #[cfg(test)]
-// mod tests {
-//   use super::*;
+#[cfg(test)]
+mod tests {
+  use super::*;
 
-  // #[test]
-  // fn test_rsa_encrypt_decrypt() {
-  //   let rsa = Rsa::generate(2048).unwrap();
-  //   let data = b"my_test data";
-  //   let mut buf = vec![0; rsa.size() as usize];
-  //   let encrypted_len = rsa.public_encrypt(data, &mut buf, Padding::PKCS1).unwrap();
+  #[test]
+  fn test_rsa_encrypt_decrypt() {
+    let rsa = Rsa::generate(2048).unwrap();
+    let data = b"my_test data";
+    let mut buf = vec![0; rsa.size() as usize];
+    let encrypted_len = rsa.public_encrypt(data, &mut buf, Padding::PKCS1).unwrap();
 
-  //   //println!("{:?}", buf[0..encrypted_len]);
-  //   let mut decrypted = vec![0; data.len()];
-  //   let decrypted_len = rsa.private_decrypt(&buf[0..encrypted_len], &mut decrypted, Padding::PKCS1).unwrap();
+    //println!("{:?}", buf[0..encrypted_len]);
+    let mut decrypted = vec![0; data.len()];
+    let decrypted_len = rsa.private_decrypt(&buf[0..encrypted_len], &mut decrypted, Padding::PKCS1).unwrap();
 
-  //   assert_eq!(decrypted_len, data.len());
-  // }
+    assert_eq!(decrypted_len, data.len());
+  }
 
-  // #[test]
-  // fn test_aes_encrypt_decrypt() {
-  //   let key     =  b"\x00\x01\x02\x03\x04\x05\x06\x07";
-  //   let mut iv  = *b"\x00\x01\x02\x03\x04\x05\x06\x07";
-  //   let aes_key = AesKey::new_encrypt(key).unwrap();
+  #[test]
+  fn test_aes_encrypt_decrypt() {
+    let key_hex = "12345678901234561234567890123456";
+    let key = Vec::from_hex(key_hex).unwrap();
+    let mut iv  = *b"\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07";
+    let mut iv2 = iv.clone();
+    let aes_enc_key = AesKey::new_encrypt(&key).unwrap();
+    let aes_dec_key = AesKey::new_decrypt(&key).unwrap();
 
-  //   let input = b"hello";
-  //   let mut output = [0u8; 16];
-  //   aes_ige(input, &mut output, &aes_key, &mut iv, Mode::Encrypt);
-  //   assert_eq!(output, *b"\xa6\xad\x97\x4d\x5c\xea\x1d\x36\xd2\xf3\x67\x98\x09\x07\xed\x32");
-  // }
+    let input = b"hello!!!hello!!!hello!!!hello!!!";
+    let mut output = [0u8; 32];
+    aes_ige(input, &mut output, &aes_enc_key, &mut iv, Mode::Encrypt);
 
-// }
+    let mut output2 = [0u8; 32];
+    aes_ige(&output, &mut output2, &aes_dec_key, &mut iv2, Mode::Decrypt);
+
+    assert_eq!(output2.to_vec(), input.to_vec());
+  }
+
+}
