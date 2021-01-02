@@ -1,9 +1,10 @@
 extern crate openssl;
+extern crate hex;
 use openssl::rsa::{Rsa, Padding};
 use openssl::pkey::Private;
 use openssl::aes::{AesKey, aes_ige};
 use openssl::symm::Mode;
-extern crate hex;
+use openssl::symm::{encrypt, decrypt, Cipher};
 use hex::{FromHex, ToHex};
 
 pub type BigInt = i128;
@@ -79,11 +80,10 @@ mod tests {
     let mut buf = vec![0; rsa.size() as usize];
     let encrypted_len = rsa.public_encrypt(data, &mut buf, Padding::PKCS1).unwrap();
 
-    //println!("{:?}", buf[0..encrypted_len]);
-    let mut decrypted = vec![0; data.len()];
+    let mut decrypted = vec![0; encrypted_len];
     let decrypted_len = rsa.private_decrypt(&buf[0..encrypted_len], &mut decrypted, Padding::PKCS1).unwrap();
 
-    assert_eq!(decrypted_len, data.len());
+    assert_eq!(decrypted[0..data.len()].to_vec(), data);
   }
 
   #[test]
@@ -103,6 +103,23 @@ mod tests {
     aes_ige(&output, &mut output2, &aes_dec_key, &mut iv2, Mode::Decrypt);
 
     assert_eq!(output2.to_vec(), input.to_vec());
+  }
+
+  #[test]
+  fn test_aes_encrypt_decrypt2() {
+    let key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
+    let iv =  b"\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07";
+
+    let input = b"hello world";
+    println!("input: {:?}", input);
+    let cipher = Cipher::aes_128_cbc();
+
+    let encrypted = encrypt(cipher, key, Some(iv), input).unwrap();
+    println!("encrypted: {:?}", encrypted);
+
+    let decrypted = decrypt(cipher, key, Some(iv), &encrypted).unwrap(); 
+    println!("unencrypted ({}), {:?}", decrypted.len(), decrypted);
+    assert_eq!(input, &decrypted[..]);
   }
 
 }
