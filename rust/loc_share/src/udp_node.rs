@@ -22,7 +22,8 @@ impl UdpNode {
   pub fn prepare_broadcast_socket(&mut self) {
     println!("set_broadcast");
     let broadcast_address = "0.0.0.0:0";
-    let new_socket = UdpSocket::bind(broadcast_address).expect("couldn't bind to address");
+    let new_socket = UdpSocket::bind(broadcast_address)
+      .expect("couldn't bind to address");
     new_socket.set_broadcast(true).expect("set_broadcast");
     self.socket = Some(new_socket);
   }
@@ -36,7 +37,10 @@ impl UdpNode {
   pub fn broadcast_message(&self, buf: &[u8], port: u32) {
     let addr = UdpNode::make_ip_addr(self.broadcast_addr, port);
     println!("Broadcasting {} bytes on address: {}", buf.len(), addr);
-    self.socket.as_ref().unwrap().send_to(buf, addr).expect("couldn't send data");
+    self.socket.as_ref()
+      .unwrap()
+      .send_to(buf, addr)
+      .expect("couldn't send data");
   }
 
   pub fn receive_broadcast_data(&self) -> Vec<u8> {

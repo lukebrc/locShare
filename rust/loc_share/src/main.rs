@@ -3,6 +3,7 @@ mod udp_node;
 mod crypto_node;
 mod connection_process;
 mod node;
+mod messages;
 
 fn main() {
   let args: Vec<String> = env::args().collect();

@@ -12,8 +12,8 @@ pub type BigInt = i128;
 pub struct CryptoNode {
   pub rsa_keys: openssl::rsa::Rsa<Private>,
   pub sym: BigInt,
-  pub ric: BigInt,
-  pub g: BigInt,
+  pub ric: Vec<u8>,
+  pub g: Vec<u8>,
 }
 
 impl CryptoNode {
@@ -23,8 +23,8 @@ impl CryptoNode {
     return CryptoNode{
       rsa_keys: keys,
       sym: 0,
-      ric: 0,
-      g: 0,
+      ric: Vec::new(),
+      g: Vec::new(),
     }
   }
 
@@ -32,8 +32,8 @@ impl CryptoNode {
     return CryptoNode{
       rsa_keys: rsa,
       sym: 0,
-      ric: 0,
-      g: 0,
+      ric: Vec::new(),
+      g: Vec::new(),
     }
   }
 
@@ -54,7 +54,7 @@ impl CryptoNode {
   }
 
   pub fn generate_random_invitation_code(&self) -> Vec<u8> {
-    //TODO:
+    //TODO: randomize
     let ic_hex = "0123456789ABCDEF";
     return Vec::from_hex(ic_hex).unwrap();
   }
@@ -71,7 +71,7 @@ impl CryptoNode {
 
   pub fn generate_dh_keys(&mut self) {
     //TODO:
-    self.g = 7;
+    self.g = Vec::new();
   }
 
   pub fn aes_encrypt(&self, input: Vec<u8>, key: &[u8]) -> Vec<u8> {
