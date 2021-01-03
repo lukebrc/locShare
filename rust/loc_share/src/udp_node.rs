@@ -39,7 +39,16 @@ impl UdpNode {
     self.socket.as_ref().unwrap().send_to(buf, addr).expect("couldn't send data");
   }
 
-  pub fn receive_broadcast(&self) -> String {
+  pub fn receive_broadcast_data(&self) -> Vec<u8> {
+    println!("waiting for broadcast message");
+    let mut buf = [0; MAX_MSG];
+    let socket = self.socket.as_ref().unwrap();
+    let (bytes, src_addr) = socket.recv_from(&mut buf).expect("recv_from");
+    println!("Received {} bytes", bytes);
+    return buf[0..bytes].to_vec();
+  }
+
+  pub fn receive_broadcast_str(&self) -> String {
     println!("waiting for broadcast message");
     let mut buf = [0; MAX_MSG];
     let socket = self.socket.as_ref().unwrap();

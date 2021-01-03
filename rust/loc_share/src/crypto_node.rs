@@ -47,9 +47,16 @@ impl CryptoNode {
     return self.rsa_keys.public_key_to_der().unwrap();
   }
 
-  pub fn generate_random_invitation_code(&self) -> BigInt {
+  // return DER-formed public key encrypted symmetrically with ic (invitation code)
+  pub fn get_encrypted_pub_key_der(&self, ic: &[u8]) -> Vec<u8> {
+    let pub_key: Vec<u8> = self.rsa_keys.public_key_to_der().unwrap();
+    return self.aes_encrypt(pub_key, ic);
+  }
+
+  pub fn generate_random_invitation_code(&self) -> Vec<u8> {
     //TODO:
-    return 1;
+    let ic_hex = "0123456789ABCDEF";
+    return Vec::from_hex(ic_hex).unwrap();
   }
 
   pub fn generate_public_message(&self, ic: &BigInt) -> BigInt {
@@ -65,6 +72,17 @@ impl CryptoNode {
   pub fn generate_dh_keys(&mut self) {
     //TODO:
     self.g = 7;
+  }
+
+  pub fn aes_encrypt(&self, input: Vec<u8>, key: &[u8]) -> Vec<u8> {
+    let cipher = Cipher::aes_128_cbc(); //todo: cipher dependent of key size
+    let encrypted = encrypt(cipher, key, Some(key), &input).unwrap(); //TODO: currently iv=key, change it
+    return encrypted;
+  }
+
+  pub fn aes_decrypt(&self, input: Vec<u8>, key: &[u8]) -> Vec<u8> {
+    let cipher = Cipher::aes_128_cbc(); //todo: cipher dependent of key size
+    return decrypt(cipher, key, Some(key), &input).unwrap(); //TODO: currently iv=key, change it
   }
 
 }
@@ -87,7 +105,38 @@ mod tests {
   }
 
   #[test]
+  fn test_get_encrypted_pub_key() {
+
+    let mut cnode = CryptoNode::generate();
+    let ic = b"\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07";
+    let iv = ic;
+    let enc_pub_key = cnode.get_encrypted_pub_key_der(ic);
+
+    let decrypted = cnode.aes_decrypt(enc_pub_key, ic);
+    println!("unencrypted ({}), {:?}", decrypted.len(), decrypted);
+    let pub_key = cnode.get_pub_key_der();
+    assert_eq!(pub_key, &decrypted[..]);
+  }
+
+  #[test]
   fn test_aes_encrypt_decrypt() {
+    let key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
+    let iv =  b"\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07";
+
+    let input = b"hello world";
+    println!("input: {:?}", input);
+    let cipher = Cipher::aes_128_cbc();
+
+    let encrypted = encrypt(cipher, key, Some(iv), input).unwrap();
+    println!("encrypted: {:?}", encrypted);
+
+    let decrypted = decrypt(cipher, key, Some(iv), &encrypted).unwrap(); 
+    println!("unencrypted ({}), {:?}", decrypted.len(), decrypted);
+    assert_eq!(input, &decrypted[..]);
+  }
+
+  #[test]
+  fn test_aes_encrypt_decrypt2() {
     let key_hex = "12345678901234561234567890123456";
     let key = Vec::from_hex(key_hex).unwrap();
     let mut iv  = *b"\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07";
@@ -103,23 +152,6 @@ mod tests {
     aes_ige(&output, &mut output2, &aes_dec_key, &mut iv2, Mode::Decrypt);
 
     assert_eq!(output2.to_vec(), input.to_vec());
-  }
-
-  #[test]
-  fn test_aes_encrypt_decrypt2() {
-    let key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
-    let iv =  b"\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07";
-
-    let input = b"hello world";
-    println!("input: {:?}", input);
-    let cipher = Cipher::aes_128_cbc();
-
-    let encrypted = encrypt(cipher, key, Some(iv), input).unwrap();
-    println!("encrypted: {:?}", encrypted);
-
-    let decrypted = decrypt(cipher, key, Some(iv), &encrypted).unwrap(); 
-    println!("unencrypted ({}), {:?}", decrypted.len(), decrypted);
-    assert_eq!(input, &decrypted[..]);
   }
 
 }
