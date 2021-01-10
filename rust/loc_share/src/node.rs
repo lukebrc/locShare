@@ -4,13 +4,12 @@ use crate::connection_process;
 use crate::messages;
 use crate::crypto;
 
-use crypto_node::BigInt;
 use crypto_node::CryptoNode;
 use udp_node::UdpNode;
 use connection_process::ConnectionProcess;
 use messages::BroadcastCode;
 
-use std::thread;
+use std::{thread, u128};
 use std::sync::mpsc::channel;
 use std::sync::Mutex;
 
@@ -54,7 +53,7 @@ impl Node {
     // todo: decipher eph_code with invitation_code
   }
 
-  fn send_number(&self, num: BigInt) {
+  fn send_number(&self, num: u128) {
     println!("Sending number: {}", num);
     let buf: String = num.to_string();
     self.udp.broadcast_message(buf.as_bytes(), DEFAULT_PORT);
@@ -66,7 +65,7 @@ impl Node {
     self.udp.broadcast_message(&buf, DEFAULT_PORT);
   }
 
-  fn receive_broadcast_number(&self) -> BigInt {
+  fn receive_broadcast_number(&self) -> u128 {
     let str: String = self.udp.receive_broadcast_str();
     return str.trim().parse()
       .expect("Invalid number");
@@ -95,7 +94,8 @@ mod tests {
     old_node.udp.prepare_broadcast_socket();
     new_node.udp.prepare_receiving_socket(5555);
 
-    let bcode = BroadcastCode::new(Vec::new());
+    let empty_vec: Vec<u8> = Vec::new();
+    let bcode = BroadcastCode::new(&empty_vec);
     let mut conn_process2 = ConnectionProcess::new(bcode);
     let mut ric: Vec<u8> = [0;1].to_vec();
     let mut eph_code: Vec<u8> = Vec::new();
@@ -111,7 +111,10 @@ mod tests {
         let conn_process = node_ref.start_connecting_to_existing_node(DEFAULT_PORT);
         sender.send(conn_process).unwrap();
       });
-      (ric, eph_code) = old_node.invite_new_user();
+      let (r, e) = old_node.invite_new_user();
+      ric = r;
+      eph_code = e;
+
       conn_process2 = receiver.recv().unwrap();
       println!("Waiting for thread join");
       child_thread.join().unwrap();

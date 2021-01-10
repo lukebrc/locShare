@@ -1,11 +1,8 @@
 extern crate hex;
-use hex::{FromHex, ToHex};
-
-pub type BigInt = i128;
+use hex::FromHex;
 
 pub struct CryptoNode {
-  //pub rsa_keys: openssl::rsa::Rsa<Private>,
-  pub sym: BigInt,
+  pub sym: Vec<u8>,
   pub ric: Vec<u8>,
   pub g: Vec<u8>,
 }
@@ -16,7 +13,7 @@ impl CryptoNode {
     //let keys = Rsa::generate(2048).unwrap();
     return CryptoNode{
       //rsa_keys: keys,
-      sym: 0,
+      sym: Vec::new(),
       ric: Vec::new(),
       g: Vec::new(),
     }

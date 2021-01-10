@@ -4,6 +4,8 @@ extern crate openssl;
 use openssl::aes::{AesKey, aes_ige};
 use openssl::symm::Mode;
 use openssl::symm::{encrypt, decrypt, Cipher};
+extern crate hex;
+use hex::{FromHex, ToHex};
   
 pub fn aes128_encrypt(input: Vec<u8>, key: &[u8]) -> Vec<u8> {
   let cipher = Cipher::aes_128_cbc(); //todo: cipher dependent of key size
