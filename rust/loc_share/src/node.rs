@@ -97,7 +97,7 @@ mod tests {
     let empty_vec: Vec<u8> = Vec::new();
     let bcode = BroadcastCode::new(&empty_vec);
     let mut conn_process2 = ConnectionProcess::new(bcode);
-    let mut ric: Vec<u8> = [0;1].to_vec();
+    let mut ric: Vec<u8> = Vec::new();
     let mut eph_code: Vec<u8> = Vec::new();
 
     let (sender, receiver) = channel();

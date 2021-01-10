@@ -1,5 +1,8 @@
 extern crate hex;
 use hex::FromHex;
+use rand::{Rng, random};
+use crate::crypto;
+use crypto::{aes128_encrypt, aes128_decrypt};
 
 pub struct CryptoNode {
   pub sym: Vec<u8>,
@@ -45,19 +48,27 @@ impl CryptoNode {
   // }
 
   pub fn generate_random_invitation_code(&self) -> Vec<u8> {
-    //TODO: randomize
-    let ic_hex = "0123456789ABCDEF";
-    return Vec::from_hex(ic_hex).unwrap();
+    let random_bytes: Vec<u8> = (0..16).map(|_| { rand::random::<u8>() }).collect();
+    return random_bytes;
   }
 
   pub fn draw_and_encrypt_ephemeral_key(&self, inv_code: &Vec<u8>) -> Vec<u8> {
-    //TODO:
-    return Vec::new();
+    println!("draw_and_encrypt {}", inv_code.len());
+    let random_bytes: Vec<u8> = (0..16).map(|_| { rand::random::<u8>() }).collect();
+    return aes128_encrypt(random_bytes, inv_code);
   }
 
 }
 
-// #[cfg(test)]
-// mod tests {
-//   use super::*;
-// }
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_draw_and_encrypt_ephemeral_key() {
+    let inv_code= b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
+    let cnode = CryptoNode::generate();
+    let inv_code_vec = inv_code.to_vec();
+    let encrypted_eph_key = cnode.draw_and_encrypt_ephemeral_key(&inv_code_vec);
+  }
+}

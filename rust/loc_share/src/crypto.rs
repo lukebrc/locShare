@@ -50,18 +50,17 @@ mod tests {
 //   }
 
   #[test]
-  fn test_aes_encrypt_decrypt() {
+  fn test_aes128_encrypt_decrypt() {
     let key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
-    let iv =  b"\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07";
+    //let iv =  b"\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07";
 
     let input = b"hello world";
     println!("input: {:?}", input);
-    let cipher = Cipher::aes_128_cbc();
 
-    let encrypted = encrypt(cipher, key, Some(iv), input).unwrap();
+    let encrypted = aes128_encrypt(input.to_vec(), key);
     println!("encrypted: {:?}", encrypted);
 
-    let decrypted = decrypt(cipher, key, Some(iv), &encrypted).unwrap(); 
+    let decrypted = aes128_decrypt(encrypted, key); 
     println!("unencrypted ({}), {:?}", decrypted.len(), decrypted);
     assert_eq!(input, &decrypted[..]);
   }
