@@ -7,13 +7,13 @@ use openssl::symm::{encrypt, decrypt, Cipher};
 extern crate hex;
 use hex::{FromHex, ToHex};
   
-pub fn aes128_encrypt(input: Vec<u8>, key: &[u8]) -> Vec<u8> {
+pub fn aes128_encrypt(input: &Vec<u8>, key: &[u8]) -> Vec<u8> {
   let cipher = Cipher::aes_128_cbc(); //todo: cipher dependent of key size
-  let encrypted = encrypt(cipher, key, Some(key), &input).unwrap(); //TODO: currently iv=key, change it
+  let encrypted = encrypt(cipher, key, Some(key), input).unwrap(); //TODO: currently iv=key, change it
   return encrypted;
 }
 
-pub fn aes128_decrypt(input: Vec<u8>, key: &[u8]) -> Vec<u8> {
+pub fn aes128_decrypt(input: &Vec<u8>, key: &[u8]) -> Vec<u8> {
   let cipher = Cipher::aes_128_cbc(); //todo: cipher dependent of key size
   return decrypt(cipher, key, Some(key), &input).unwrap(); //TODO: currently iv=key, change it
 }
@@ -57,10 +57,10 @@ mod tests {
     let input = b"hello world";
     println!("input: {:?}", input);
 
-    let encrypted = aes128_encrypt(input.to_vec(), key);
+    let encrypted = aes128_encrypt(&input.to_vec(), key);
     println!("encrypted: {:?}", encrypted);
 
-    let decrypted = aes128_decrypt(encrypted, key); 
+    let decrypted = aes128_decrypt(&encrypted, key); 
     println!("unencrypted ({}), {:?}", decrypted.len(), decrypted);
     assert_eq!(input, &decrypted[..]);
   }

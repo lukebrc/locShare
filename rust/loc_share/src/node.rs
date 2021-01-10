@@ -32,10 +32,11 @@ impl Node {
     println!("invite_new_user");
     let inv_code = self.crypto.generate_random_invitation_code();
     self.udp.prepare_broadcast_socket();
-    let enc_eph_key = self.crypto.draw_and_encrypt_ephemeral_key(&inv_code);
+    let eph_key = self.crypto.draw_ephemeral_key();
+    let enc_eph_key = self.crypto.encrypt_ephemeral_key(&eph_key, &inv_code);
     let invitation_msg = BroadcastCode::new(&enc_eph_key);
     self.send_message(&invitation_msg);
-    return (inv_code, enc_eph_key);
+    return (inv_code, eph_key);
   }
 
   // waits for encrypted invitation code and returns it
@@ -47,10 +48,11 @@ impl Node {
     return ConnectionProcess::new(broadcast_code);
   }
 
-  pub fn continue_connecting_to_node(&self, conn_proc: &mut ConnectionProcess, invitation_code: Vec<u8>, eph_code: Vec<u8>) {
+  pub fn continue_connecting_to_node(&self, conn_proc: &mut ConnectionProcess,
+                                     invitation_code: &Vec<u8>, eph: &Vec<u8>) {
     println!("continue_connecting_to_node");
-    conn_proc.invitation_code = invitation_code;
-    // todo: decipher eph_code with invitation_code
+    let decrypted = self.crypto.decrypt_ephmemeral_key(eph, invitation_code);
+    conn_proc.decrypted_eph_key = decrypted;
   }
 
   fn send_number(&self, num: u128) {
@@ -121,7 +123,7 @@ mod tests {
     }
 
     let node_ref2 = counter.lock().unwrap();
-    node_ref2.continue_connecting_to_node(&mut conn_process2, ric, eph_code);
+    node_ref2.continue_connecting_to_node(&mut conn_process2, &ric, &eph_code);
   }
 
 }
