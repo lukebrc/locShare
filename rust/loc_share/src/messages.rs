@@ -3,17 +3,15 @@ pub trait Message {
 }
 
 pub struct BroadcastCode {
-  pub enc_pub_key: Vec<u8>,
-  pub enc_dh_group: Vec<u8>,
+  pub encrypted_msg: Vec<u8>,
   crc: u32,
 }
 
 impl BroadcastCode {
-  pub fn new(enc_pub_key: Vec<u8>, dh_group: Vec<u8>) -> BroadcastCode {
+  pub fn new(encrypted_msg: &Vec<u8>) -> BroadcastCode {
     let crc: u32 = 0; //TODO:
     return BroadcastCode{
-      enc_pub_key: enc_pub_key,
-      enc_dh_group: dh_group,
+      encrypted_msg: encrypted_msg.clone(),
       crc: crc,
     }
   }
