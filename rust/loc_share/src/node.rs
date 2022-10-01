@@ -48,11 +48,10 @@ impl Node {
     return ConnectionProcess::new(broadcast_code);
   }
 
-  pub fn continue_connecting_to_node(&self, conn_proc: &mut ConnectionProcess,
-                                     invitation_code: &Vec<u8>, eph: &Vec<u8>) {
+  pub fn continue_connecting_to_node(&self, encrypted_msg: &Vec<u8>,
+                                     invitation_code: &Vec<u8>) -> Vec<u8> {
     println!("continue_connecting_to_node");
-    let decrypted = self.crypto.decrypt_ephmemeral_key(eph, invitation_code);
-    conn_proc.decrypted_eph_key = decrypted;
+    return self.crypto.decrypt_ephmemeral_key(&encrypted_msg, invitation_code);
   }
 
   fn send_number(&self, num: u128) {
@@ -81,49 +80,40 @@ mod tests {
   #[test]
   fn add_new_node() {
     let cnode: CryptoNode = CryptoNode::generate();
-    let mut new_node: Node = Node::new(
-      UdpNode::new([127,0,0,1], [127,0,0,1]),
-      cnode,
-    );
 
-    let uold_node = udp_node::UdpNode::new([127,0,0,1], [127,0,0,1]);
-    let cold_node = crypto_node::CryptoNode::generate();
+    let old_udp_node = udp_node::UdpNode::new([127,0,0,1], [127,0,0,1]);
+    let old_crypto_node = crypto_node::CryptoNode::generate();
     let mut old_node: Node = Node{
-        udp: uold_node,
-        crypto: cold_node,
+        udp: old_udp_node,
+        crypto: old_crypto_node,
     };
 
     old_node.udp.prepare_broadcast_socket();
-    new_node.udp.prepare_receiving_socket(5555);
 
-    let empty_vec: Vec<u8> = Vec::new();
-    let bcode = BroadcastCode::new(&empty_vec);
-    let mut conn_process2 = ConnectionProcess::new(bcode);
-    let mut ric: Vec<u8> = Vec::new();
-    let mut eph_code: Vec<u8> = Vec::new();
+    let receiver = new_node_thread(cnode);
+    let (rand_inv_code, eph_code) = old_node.invite_new_user();
+    let new_node = receiver.recv().unwrap();
+  }
 
+  fn new_node_thread(cnode: CryptoNode) -> std::sync::mpsc::Receiver<Node> {
     let (sender, receiver) = channel();
-    let mutex = Mutex::new(new_node);
-    let counter = std::sync::Arc::new(mutex);
-    {
-      println!("counter.clone");
-      let counter = counter.clone();
-      let child_thread = thread::spawn(move || {
-        let node_ref = counter.lock().unwrap();
-        let conn_process = node_ref.start_connecting_to_existing_node(DEFAULT_PORT);
-        sender.send(conn_process).unwrap();
-      });
-      let (r, e) = old_node.invite_new_user();
-      ric = r;
-      eph_code = e;
+    let child_thread = thread::spawn(move || {
+      let mut new_node: Node = Node::new(
+        UdpNode::new([127,0,0,1], [127,0,0,1]),
+        cnode,
+      );
+      new_node.udp.prepare_receiving_socket(5555);
 
-      conn_process2 = receiver.recv().unwrap();
-      println!("Waiting for thread join");
-      child_thread.join().unwrap();
-    }
+      let mut conn_process = new_node.start_connecting_to_existing_node(DEFAULT_PORT);
+      let encrypted_msg = &conn_process.broadcast_code.encrypted_msg;
+      //TODO: listen for out-of-band invication_code
+      let invitation_code: Vec<u8> = vec![0,0,0];
 
-    let node_ref2 = counter.lock().unwrap();
-    node_ref2.continue_connecting_to_node(&mut conn_process2, &ric, &eph_code);
+      conn_process.decrypted_eph_key = new_node.continue_connecting_to_node(encrypted_msg, &invitation_code);
+      sender.send(new_node).unwrap();
+    });
+
+    return receiver;
   }
 
 }

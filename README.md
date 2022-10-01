@@ -15,7 +15,7 @@ g - diffie-hellman group
 a - diffie-hellman key for A
 n - diffie-hellman key for B
 
-1. A ---[ic]---> U,                      [ic - random invitation code]
+1. A ...[ic]...> U,                     [ic - random invitation code passed securely out of band]
 2. A ---[X1]---> broadcast -----> N,    [X1 - `r` encrypted with `ic`]
 3. U ---[ic]---> N
 4. N ---[X2]---> A,                     [X2 - random key `r` encrypted with `ic`]
