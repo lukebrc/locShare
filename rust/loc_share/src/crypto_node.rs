@@ -6,20 +6,19 @@ use crypto::{aes128_encrypt, aes128_decrypt};
 use connection_process::ConnectionProcess;
 
 pub struct CryptoNode {
-  pub sym: Vec<u8>,
-  pub ric: Vec<u8>,
-  pub g: Vec<u8>,
+  pub sym_key: Vec<u8>,
+  pub invitation_code: Vec<u8>,
+  pub eph: Vec<u8>,
+  //pub g: Vec<u8>,
 }
 
 impl CryptoNode {
 
-  pub fn generate() -> CryptoNode {
-    //let keys = Rsa::generate(2048).unwrap();
+  pub fn new() -> CryptoNode {
     return CryptoNode{
-      //rsa_keys: keys,
-      sym: Vec::new(),
-      ric: Vec::new(),
-      g: Vec::new(),
+      sym_key: Vec::new(),
+      invitation_code: Vec::new(),
+      eph: Vec::new(),
     }
   }
 
@@ -48,17 +47,19 @@ impl CryptoNode {
   //   return self.aes_encrypt(pub_key, ic);
   // }
 
-  pub fn generate_random_invitation_code(&self) -> Vec<u8> {
-    let random_bytes: Vec<u8> = (0..16).map(|_| { rand::random::<u8>() }).collect();
-    return random_bytes;
+  pub fn generate_random_invitation_code() -> Vec<u8> {
+    return CryptoNode::random_bytes(16);
   }
 
-  pub fn draw_ephemeral_key(&self) -> Vec<u8> {
-    let random_bytes: Vec<u8> = (0..16).map(|_| { rand::random::<u8>() }).collect();
-    return random_bytes;
+  pub fn draw_ephemeral_key() -> Vec<u8> {
+    return CryptoNode::random_bytes(16);
   }
 
-  pub fn encrypt_ephemeral_key(&self, eph_key: &Vec<u8>, inv_code: &Vec<u8>) -> Vec<u8> {
+  pub fn random_bytes(n: u16) -> Vec<u8> {
+    return (0..n).map(|_| { random::<u8>() }).collect();
+  }
+
+  pub fn encrypt_ephemeral_key(eph_key: &Vec<u8>, inv_code: &Vec<u8>) -> Vec<u8> {
     return aes128_encrypt(eph_key, inv_code);
   }
 
@@ -78,9 +79,9 @@ mod tests {
   #[test]
   fn test_draw_and_encrypt_ephemeral_key() {
     let inv_code= b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
-    let cnode = CryptoNode::generate();
+    let cnode = CryptoNode::new();
     let inv_code_vec = inv_code.to_vec();
-    let eph_key = cnode.draw_ephemeral_key();
-    let enc_eph_key = cnode.encrypt_ephemeral_key(&eph_key, &inv_code.to_vec());
+    let eph_key = CryptoNode::draw_ephemeral_key();
+    let enc_eph_key = CryptoNode::encrypt_ephemeral_key(&eph_key, &inv_code.to_vec());
   }
 }
