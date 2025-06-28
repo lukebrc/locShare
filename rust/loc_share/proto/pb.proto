@@ -1,0 +1,6 @@
+syntax="proto3";
+
+message Config {
+  bytes sym_key = 1;
+  uint64 generated = 2;
+}

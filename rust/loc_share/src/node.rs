@@ -27,7 +27,7 @@ impl Node {
   }
 
   pub fn invite_new_user(&mut self) {
-    println!("invite_new_user");
+    println!("invite_new_user - waiting for broadcast data");
     let enc_eph = self.udp.receive_broadcast_data();
     println!("Received encrypted eph {:?}", enc_eph);
   }
@@ -100,7 +100,7 @@ mod tests {
     let receiver = new_node_thread(cnode, &invitation_code);
 
     old_node.invite_new_user();
-    //let (rand_inv_code, eph_code) = old_node.invite_new_user();
+    println!("Waiting for new node end");
     let new_node = receiver.recv().unwrap();
   }
 

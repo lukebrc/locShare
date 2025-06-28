@@ -23,8 +23,10 @@ n - diffie-hellman key for B
 1. `E` generates **random invitation code** and shows it to user `U`
 2. user `U` writes **random invitation code** to new device `N`
 3. Device `N` sends ephemeral key `eph` encrypted with `ic` over broadcast to `E`
-4. Machine `E` sends back secret key encrypted with `eph`
+4. Machine `E` sends back secret key `S` encrypted with `eph`
 5. New machine `N` should have the same symmetric key as `E`
+
+##
 
 ## Messages
 
