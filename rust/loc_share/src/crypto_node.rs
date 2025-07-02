@@ -171,8 +171,8 @@ impl CryptoNode {
     return (0..n).map(|_| { random::<u8>() }).collect();
   }
 
-  pub fn encrypt_ephemeral_key(eph_key: &Vec<u8>, inv_code: &Vec<u8>) -> Vec<u8> {
-    return aes128_encrypt(eph_key, inv_code);
+  pub fn encrypt_ephemeral_key(&self, inv_code: &Vec<u8>) -> Vec<u8> {
+    return aes128_encrypt(&self.eph, inv_code);
   }
 
   pub fn decrypt_ephmemeral_key(&self, eph_key: &Vec<u8>, inv_code: &Vec<u8>) -> Vec<u8> {
@@ -190,10 +190,15 @@ mod tests {
 
   #[test]
   fn test_draw_and_encrypt_ephemeral_key() {
+    let sym_key= b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
     let inv_code= b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
-    let cnode = CryptoNode::new();
-    let inv_code_vec = inv_code.to_vec();
     let eph_key = CryptoNode::draw_ephemeral_key();
-    let enc_eph_key = CryptoNode::encrypt_ephemeral_key(&eph_key, &inv_code.to_vec());
+    let inv_code_vec = inv_code.to_vec();
+    let cnode = CryptoNode {
+      sym_key: sym_key.to_vec(),
+      invitation_code: inv_code_vec,
+      eph: eph_key,
+    };
+    let enc_eph_key = cnode.encrypt_ephemeral_key(&inv_code.to_vec());
   }
 }

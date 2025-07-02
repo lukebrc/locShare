@@ -38,7 +38,7 @@ impl Node {
     self.crypto.invitation_code = inv_code.clone();
     self.udp.prepare_broadcast_socket();
     self.crypto.eph = CryptoNode::draw_ephemeral_key();
-    let encrypted_eph = CryptoNode::encrypt_ephemeral_key(&self.crypto.eph, inv_code);
+    let encrypted_eph = self.crypto.encrypt_ephemeral_key(inv_code);
     // let broadcast_code = BroadcastCode::new(&enc_pub_key);
     println!("broadcasting message of {} bytes", self.crypto.eph.len());
     self.udp.broadcast_message(&encrypted_eph, DEFAULT_PORT);
@@ -82,10 +82,24 @@ mod tests {
 
   #[test]
   fn add_new_node() {
-    let cnode: CryptoNode = CryptoNode::new();
+    let sym_key= b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
+    let inv_code= b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
+    let eph_key = CryptoNode::draw_ephemeral_key();
+    let inv_code_vec = inv_code.to_vec();
+    let cnode = CryptoNode {
+      sym_key: sym_key.to_vec(),
+      invitation_code: inv_code_vec.clone(),
+      eph: eph_key.clone(),
+    };
 
     let old_udp_node = UdpNode::new([127,0,0,1], [127,0,0,1]);
-    let old_crypto_node = CryptoNode::new();
+
+    let old_crypto_node = CryptoNode {
+      sym_key: sym_key.to_vec(),
+      invitation_code: inv_code_vec.clone(),
+      eph: eph_key.clone(),
+    };
+
     let mut old_node: Node = Node{
         udp: old_udp_node,
         crypto: old_crypto_node,
