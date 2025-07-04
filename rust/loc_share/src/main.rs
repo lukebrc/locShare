@@ -6,7 +6,6 @@ mod node;
 mod messages;
 mod proto;
 use crypto_node::CryptoNode;
-use std::env;
 use std::io::{Result, Error, ErrorKind};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -14,24 +13,34 @@ use clap::Parser;
 
 #[derive(Parser, Debug)]
 struct Args {
+  #[arg(long)]
+  config_dir: Option<String>,
+
+  #[arg(short, long, default_value_t = false)]
+  connect: bool,
+
   #[arg(short, long)]
-  config_dir: String,
+  inv_code: Option<String>
 }
 
 fn main() {
   let args = Args::parse();
-  let buf = &[1,2,3,4,5];
   let my_ip = find_my_ip();
   let broadcast_addr = find_broadcast_addr(my_ip);
 
-  let loc_share_dir = get_loc_share_dir(args).unwrap();
+  let loc_share_dir = get_loc_share_dir(args.config_dir).unwrap();
 
-  let unode = udp_node::UdpNode::new(my_ip, broadcast_addr);
+  let mut unode = udp_node::UdpNode::new(my_ip, broadcast_addr);
   let my_node = match create_crypto_node(&loc_share_dir) {
     Ok(n) => n,
     Err(msg) => panic!("{}", msg)
   };
-  //let cnode = CryptoNode::new();
+
+  match args.inv_code {
+    Some(ic) => my_node.connect(&mut unode, ic),
+    None => my_node.listen(&mut unode),
+  }.unwrap();
+  
   //let client = node::Node{udp: unode, crypto: cnode};
 
   // let port = find_free_port();
@@ -45,14 +54,14 @@ fn main() {
   // }
 }
 
-fn get_loc_share_dir(args: Args) -> Result<PathBuf> {
-  if args.config_dir.is_empty() {
+fn get_loc_share_dir(config_dir: Option<String>) -> Result<PathBuf> {
+  if config_dir.is_none() {
     return match dirs::home_dir() {
-      Some(d) => Ok(d.as_path().join(".loc_share")),
+      Some(d) => create_config_dir_if_needed(d.as_path().join(".loc_share")),
       None => return Err(Error::new(ErrorKind::NotFound, "Could not get home dir"))
     };
   }
-  match PathBuf::from_str(args.config_dir.as_str()) {
+  match PathBuf::from_str(config_dir.unwrap().as_str()) {
     Ok(d) => Ok(d),
     Err(e) => Err(Error::new(ErrorKind::NotFound, format!("Invalid config directory: {}", e)))
   }
@@ -75,11 +84,7 @@ fn create_crypto_node(config_dir: &PathBuf) -> Result<CryptoNode> {
   }
 }
 
-fn create_config_dir_if_needed() -> Result<PathBuf> {
-  let loc_share_dir = match dirs::home_dir() {
-    Some(d) => d.as_path().join(".loc_share"),
-    None => return Err(Error::new(ErrorKind::NotFound, "Could not get home dir"))
-  };
+fn create_config_dir_if_needed(loc_share_dir: PathBuf) -> Result<PathBuf> {
   let loc_share_dir_str = loc_share_dir.to_str().unwrap();
   if ! std::fs::exists(&loc_share_dir)? {
     println!("Creating directory {}", loc_share_dir_str);

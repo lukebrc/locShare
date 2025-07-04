@@ -7,11 +7,11 @@ use openssl::{hash::MessageDigest, pkcs5::pbkdf2_hmac};
 use openssl::aes::AesKey;
 use protobuf::{Message, SpecialFields};
 use rand::{Rng, random};
-use crate::{connection_process, crypto};
+use crate::{connection_process, crypto, udp_node};
 use crypto::{aes128_encrypt, aes128_decrypt};
 use std::io::{Result, Error, ErrorKind};
 use std::path::PathBuf;
-use crate::proto::pb::Config;
+use crate::proto::pb::{Config, ConnectRequest};
 
 const CIPHER_LEN: usize = 32;
 const HMAC_ITER: usize = 1024;
@@ -20,6 +20,7 @@ pub struct CryptoNode {
   pub sym_key: Vec<u8>,
   pub invitation_code: Vec<u8>,
   pub eph: Vec<u8>,
+  pub port: u32,
   //pub g: Vec<u8>,
 }
 
@@ -39,7 +40,8 @@ impl CryptoNode {
     Ok(CryptoNode {
       sym_key: dec_buf.to_vec(),
       invitation_code: Vec::new(),
-      eph: Vec::new()
+      eph: Vec::new(),
+      port: 5522,
     })
   }
 
@@ -50,10 +52,53 @@ impl CryptoNode {
     let node = CryptoNode {
        sym_key: enc_sym_key.to_vec(),
        invitation_code: Vec::new(),
-       eph: Vec::new()
+       eph: Vec::new(),
+       port: 5522
     };
     Self::save_to_disc(config_dir, &node)?;
     Ok(node)
+  }
+
+  pub fn listen(self, unode: &mut udp_node::UdpNode) -> Result<()> {
+    unode.prepare_receiving_socket(5522);
+    let connect_msg = unode.receive_broadcast_data();
+    let request = ConnectRequest::parse_from_bytes(&connect_msg)?;
+    Ok(())
+  }
+
+  pub fn connect(self, unode: &mut udp_node::UdpNode, inv_code: String) -> Result<()> {
+    unode.prepare_broadcast_socket();
+    let msg = ConnectRequest {
+      inv_code,
+      special_fields: SpecialFields::default()
+    };
+    let mut v: Vec<u8> = Vec::new();
+    msg.write_to_vec(&mut v)?;
+    unode.broadcast_message(&v, self.port)?;
+    Ok(())
+  }
+
+  pub fn generate_random_invitation_code() -> Vec<u8> {
+    return CryptoNode::random_bytes(16);
+  }
+
+  pub fn draw_ephemeral_key() -> Vec<u8> {
+    return CryptoNode::random_bytes(16);
+  }
+
+  pub fn random_bytes(n: u16) -> Vec<u8> {
+    return (0..n).map(|_| { random::<u8>() }).collect();
+  }
+
+  pub fn encrypt_ephemeral_key(&self, inv_code: &Vec<u8>) -> Vec<u8> {
+    return aes128_encrypt(&self.eph, inv_code);
+  }
+
+  pub fn decrypt_ephmemeral_key(&self, eph_key: &Vec<u8>, inv_code: &Vec<u8>) -> Vec<u8> {
+    //TODO: check conn_proc.broadcast_code CRC
+    println!("lengths: {}, {}", eph_key.len(), inv_code.len());
+    let decrypted = aes128_decrypt(&eph_key, &inv_code);
+    return decrypted;
   }
 
   fn load_config_from_disc(config_dir: &PathBuf) -> Result<Config> {
@@ -143,29 +188,6 @@ impl CryptoNode {
   //   let pub_key: Vec<u8> = self.rsa_keys.public_key_to_der().unwrap();
   //   return self.aes_encrypt(pub_key, ic);
   // }
-
-  pub fn generate_random_invitation_code() -> Vec<u8> {
-    return CryptoNode::random_bytes(16);
-  }
-
-  pub fn draw_ephemeral_key() -> Vec<u8> {
-    return CryptoNode::random_bytes(16);
-  }
-
-  pub fn random_bytes(n: u16) -> Vec<u8> {
-    return (0..n).map(|_| { random::<u8>() }).collect();
-  }
-
-  pub fn encrypt_ephemeral_key(&self, inv_code: &Vec<u8>) -> Vec<u8> {
-    return aes128_encrypt(&self.eph, inv_code);
-  }
-
-  pub fn decrypt_ephmemeral_key(&self, eph_key: &Vec<u8>, inv_code: &Vec<u8>) -> Vec<u8> {
-    //TODO: check conn_proc.broadcast_code CRC
-    println!("lengths: {}, {}", eph_key.len(), inv_code.len());
-    let decrypted = aes128_decrypt(&eph_key, &inv_code);
-    return decrypted;
-  }
 
 }
 

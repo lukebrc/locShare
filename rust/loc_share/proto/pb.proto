@@ -4,3 +4,7 @@ message Config {
   bytes sym_key = 1;
   uint64 generated = 2;
 }
+
+message ConnectRequest {
+  string inv_code = 1;
+}

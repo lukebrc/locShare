@@ -1,5 +1,6 @@
 use std::net::UdpSocket;
 use std::str;
+use std::io::{Result, Error, ErrorKind};
 
 const MAX_MSG: usize = 32;
 
@@ -34,13 +35,12 @@ impl UdpNode {
     self.socket = Some(new_socket);
   }
 
-  pub fn broadcast_message(&self, buf: &[u8], port: u32) {
+  pub fn broadcast_message(&self, buf: &[u8], port: u32) -> Result<usize> {
     let addr = UdpNode::make_ip_addr(self.broadcast_addr, port);
     println!("Broadcasting {} bytes on address: {}", buf.len(), addr);
     self.socket.as_ref()
       .unwrap()
       .send_to(buf, addr)
-      .expect("couldn't send data");
   }
 
   pub fn receive_broadcast_data(&self) -> Vec<u8> {
