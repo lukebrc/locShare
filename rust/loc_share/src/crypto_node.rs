@@ -75,6 +75,10 @@ impl CryptoNode {
     let mut v: Vec<u8> = Vec::new();
     msg.write_to_vec(&mut v)?;
     unode.broadcast_message(&v, self.port)?;
+    let mut buf  = [0u8; 1024];
+    let answer = unode.receive_data(&mut buf)?;
+
+
     Ok(())
   }
 

@@ -1,10 +1,54 @@
 syntax="proto3";
 
+// configuration
+
 message Config {
   bytes sym_key = 1;
   uint64 generated = 2;
 }
 
+enum ResponseCode {
+  OK = 0;
+  ERROR_IN_DATA = 1;
+  UNKNOWN_USER = 2;
+}
+ 
+// UDP messages 
+
+// connect request message encrypted with invitation code
 message ConnectRequest {
-  string inv_code = 1;
+  string eph_key = 1;
+}
+
+message ConnectResponse {
+  string your_new_id = 1;
+  ResponseCode response_code = 2;
+}
+
+//this message will be encrypted using ephemeral key
+message HelloRequest {
+  string my_id = 1;
+}
+
+enum HelloResponseCode {
+  OK = 0;
+  TRY_AGAIN = 1;
+  DONT_KNOW_YOU = 2;
+  TIME_TO_REFRESH_KEY = 3;
+}
+
+message HelloResponse {
+  HelloResponseCode response_code = 1;
+  optional uint16 tcp_port = 2;
+}
+
+//message is encrypted using previous ephemeral key
+message RefreshKeyRequest {
+  bytes previous_eph_key = 1;
+  bytes new_eph_key = 2;
+}
+
+//response is also encrypted using previous ephemeral key
+message RefreshKeyResponse {
+  bytes new_eph_key = 1;
 }

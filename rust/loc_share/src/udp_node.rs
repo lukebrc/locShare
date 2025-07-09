@@ -43,6 +43,13 @@ impl UdpNode {
       .send_to(buf, addr)
   }
 
+  pub fn receive_data(&self, buf: &mut [u8]) -> Result<(usize, std::net::SocketAddr)> {
+    self.socket.as_ref()
+      .unwrap()
+      .recv_from(buf)
+    
+  }
+
   pub fn receive_broadcast_data(&self) -> Vec<u8> {
     println!("waiting for broadcast message");
     let mut buf = [0; MAX_MSG];

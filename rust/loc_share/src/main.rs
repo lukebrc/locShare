@@ -20,7 +20,7 @@ struct Args {
   connect: bool,
 
   #[arg(short, long)]
-  inv_code: Option<String>
+  inv_code: Option<String> //invitation code received from master node
 }
 
 fn main() {
@@ -36,11 +36,13 @@ fn main() {
     Err(msg) => panic!("{}", msg)
   };
 
-  match args.inv_code {
-    Some(ic) => my_node.connect(&mut unode, ic),
-    None => my_node.listen(&mut unode),
-  }.unwrap();
-  
+  if args.inv_code.is_some() {
+    my_node.connect(&mut unode, args.inv_code.unwrap()).unwrap();
+  }
+  else {
+    my_node.listen(&mut unode).unwrap();
+  }
+
   //let client = node::Node{udp: unode, crypto: cnode};
 
   // let port = find_free_port();
