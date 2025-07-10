@@ -47,7 +47,7 @@ impl Node {
     // return broadcast_code.encrypted_msg;
   }
 
-  pub fn continue_connecting_to_node(&mut self, enc_eph_key: &Vec<u8>, invitation_code: &String) -> Vec<u8> {
+  pub fn continue_connecting_to_node(&mut self, enc_eph_key: &Vec<u8>, invitation_code: &Vec<u8>) -> Vec<u8> {
     println!("continue_connecting_to_node");
     self.crypto.invitation_code = invitation_code.clone();
     return self.crypto.decrypt_ephmemeral_key(&enc_eph_key, &invitation_code);

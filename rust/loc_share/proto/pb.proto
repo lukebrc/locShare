@@ -7,7 +7,6 @@ message Config {
   uint64 generated = 2;
 }
 
-<<<<<<< HEAD
 enum ResponseCode {
   OK = 0;
   ERROR_IN_DATA = 1;
@@ -18,8 +17,8 @@ enum ResponseCode {
 
 // connect request message encrypted with invitation code
 message ConnectRequest {
-  string eph_key = 1;
-  string inv_code = 2;
+  bytes eph_key = 1;
+  bytes inv_code_mac = 2;
 }
 
 message ConnectResponse {
@@ -41,7 +40,7 @@ enum HelloResponseCode {
 
 message HelloResponse {
   HelloResponseCode response_code = 1;
-  optional uint16 tcp_port = 2;
+  optional uint32 tcp_port = 2;
 }
 
 //TCP messages
@@ -65,5 +64,5 @@ message EntryData {
 }
 
 message MyEntries {
-  repeated EntryData = 1;
+  repeated EntryData entries = 1;
 }
