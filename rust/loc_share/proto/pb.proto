@@ -44,6 +44,8 @@ message HelloResponse {
   optional uint16 tcp_port = 2;
 }
 
+//TCP messages
+
 //message is encrypted using previous ephemeral key
 message RefreshKeyRequest {
   bytes previous_eph_key = 1;
@@ -53,4 +55,15 @@ message RefreshKeyRequest {
 //response is also encrypted using previous ephemeral key
 message RefreshKeyResponse {
   bytes new_eph_key = 1;
+}
+
+message EntryData {
+  string name = 1;
+  uint64 modified = 2;
+  bytes hash = 3;
+  optional bytes prev_hash = 4;
+}
+
+message MyEntries {
+  repeated EntryData = 1;
 }
