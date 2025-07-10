@@ -7,6 +7,7 @@ message Config {
   uint64 generated = 2;
 }
 
+<<<<<<< HEAD
 enum ResponseCode {
   OK = 0;
   ERROR_IN_DATA = 1;
@@ -18,6 +19,7 @@ enum ResponseCode {
 // connect request message encrypted with invitation code
 message ConnectRequest {
   string eph_key = 1;
+  string inv_code = 2;
 }
 
 message ConnectResponse {

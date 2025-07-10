@@ -16,7 +16,7 @@ a - diffie-hellman key for E
 n - diffie-hellman key for B
 
 1. E ...[ic]...> U,                     [ic - random invitation code passed securely out of band]
-2. U ---[ic]---> N                      [ user writes random invitation code to new device and clicks join request ]
+2. U ---[ic]---> N                      [ user writes random invitation code to new device and starts join process ]
 3. N ---[X1]---> broadcast -----> E,    [X1 - random ephemeral key (`eph`) encrypted with `ic`]
 4. E ---[X2]---> N,                     [X2 - group key `S` encrypted with decrypted `eph` key ]
 

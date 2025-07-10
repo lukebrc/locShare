@@ -2,7 +2,9 @@ extern crate hex;
 extern crate dirs;
 use std::fs::File;
 use std::io::{Read, Write};
+use openssl::symm::Cipher;
 use openssl::{hash::MessageDigest, pkcs5::pbkdf2_hmac};
+use openssl::cipher::Cipher;
 
 use openssl::aes::AesKey;
 use protobuf::{Message, SpecialFields};
@@ -18,7 +20,7 @@ const HMAC_ITER: usize = 1024;
 
 pub struct CryptoNode {
   pub sym_key: Vec<u8>,
-  pub invitation_code: Vec<u8>,
+  pub invitation_code: String,
   pub eph: Vec<u8>,
   pub port: u32,
   //pub g: Vec<u8>,
@@ -39,7 +41,7 @@ impl CryptoNode {
 
     Ok(CryptoNode {
       sym_key: dec_buf.to_vec(),
-      invitation_code: Vec::new(),
+      invitation_code: String::new(),
       eph: Vec::new(),
       port: 5522,
     })
@@ -51,7 +53,7 @@ impl CryptoNode {
     let enc_sym_key = Self::encrypt_sym_key(pin, &sym_key)?;
     let node = CryptoNode {
        sym_key: enc_sym_key.to_vec(),
-       invitation_code: Vec::new(),
+       invitation_code: String::new(),
        eph: Vec::new(),
        port: 5522
     };
@@ -60,25 +62,35 @@ impl CryptoNode {
   }
 
   pub fn listen(self, unode: &mut udp_node::UdpNode) -> Result<()> {
+    let iv: [u8; 8] = [7; 8];
     unode.prepare_receiving_socket(5522);
-    let connect_msg = unode.receive_broadcast_data();
+    let enc_connect_msg = unode.receive_broadcast_data();
+    let connect_msg = openssl::symm::decrypt(Cipher::aes_256_cbc(), &self.invitation_code.as_bytes(), None, &enc_connect_msg)?;
     let request = ConnectRequest::parse_from_bytes(&connect_msg)?;
+    if request.inv_code != self.invitation_code {
+      println!("Invitation code does not match");
+    }
     Ok(())
   }
 
   pub fn connect(self, unode: &mut udp_node::UdpNode, inv_code: String) -> Result<()> {
+    let iv: [u8; 8] = [7; 8];
     unode.prepare_broadcast_socket();
+
+    let mut eph_key= [0; CIPHER_LEN];
+    openssl::rand::rand_bytes(&mut eph_key).unwrap();
+
     let msg = ConnectRequest {
-      inv_code,
+      eph_key: eph_key.to_vec(),
+      inv_code: inv_code.clone(),
       special_fields: SpecialFields::default()
     };
     let mut v: Vec<u8> = Vec::new();
     msg.write_to_vec(&mut v)?;
-    unode.broadcast_message(&v, self.port)?;
+    let enc_msg= openssl::symm::encrypt(Cipher::aes_256_cbc(), inv_code.as_bytes(), None, &v)?;
+    unode.broadcast_message(&enc_msg, self.port)?;
     let mut buf  = [0u8; 1024];
     let answer = unode.receive_data(&mut buf)?;
-
-
     Ok(())
   }
 
