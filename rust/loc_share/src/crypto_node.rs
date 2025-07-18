@@ -2,20 +2,12 @@ extern crate hex;
 extern crate dirs;
 use std::fs::File;
 use std::io::{Read, Write};
-use openssl::symm::Cipher;
-use openssl::{hash::MessageDigest, pkcs5::pbkdf2_hmac};
-
-use openssl::aes::AesKey;
 use protobuf::{Message, SpecialFields};
-use rand::{Rng, random};
 use crate::{connection_process, crypto, udp_node};
-use crypto::{aes128_encrypt, aes128_decrypt};
 use std::io::{Result, Error, ErrorKind};
 use std::path::PathBuf;
 use crate::proto::pb::{Config, ConnectRequest};
 
-const CIPHER_LEN: usize = 32;
-const HMAC_ITER: usize = 1024;
 
 pub struct CryptoNode {
   pub sym_key: Vec<u8>,
@@ -34,25 +26,25 @@ impl CryptoNode {
     }
   }
 
-  pub fn load_from_disc(config_dir: &PathBuf, pin: &str) -> Result<CryptoNode> {
+  pub fn load_from_disc(config_dir: &PathBuf, pin: &str, inv_code: String) -> Result<CryptoNode> {
     let config = Self::load_config_from_disc(config_dir)?;
-    let dec_buf = Self::decrypt_sym_key(pin, &config.sym_key)?;
+    let dec_buf = crypto::decrypt_sym_key(pin, &config.sym_key)?;
 
     Ok(CryptoNode {
       sym_key: dec_buf.to_vec(),
-      invitation_code: String::new(),
+      invitation_code: inv_code,
       eph: Vec::new(),
       port: 5522,
     })
   }
 
-  pub fn create_new(config_dir: &PathBuf, pin: &str) -> Result<CryptoNode> {
-    let mut sym_key = [0; CIPHER_LEN];
+  pub fn create_new(config_dir: &PathBuf, pin: &str, inv_code: String) -> Result<CryptoNode> {
+    let mut sym_key = [0; crypto::CIPHER_LEN];
     openssl::rand::rand_bytes(&mut sym_key).unwrap();
-    let enc_sym_key = Self::encrypt_sym_key(pin, &sym_key)?;
+    let enc_sym_key = crypto::encrypt_sym_key(pin, &sym_key)?;
     let node = CryptoNode {
        sym_key: enc_sym_key.to_vec(),
-       invitation_code: String::new(),
+       invitation_code: inv_code,
        eph: Vec::new(),
        port: 5522
     };
@@ -60,15 +52,13 @@ impl CryptoNode {
     Ok(node)
   }
 
-  pub fn listen(self, unode: &mut udp_node::UdpNode) -> Result<()> {
-    let iv: [u8; 8] = [7; 8];
+  pub fn listen(self, unode: &mut udp_node::UdpNode) -> std::result::Result<(), Box<dyn std::error::Error> > {
     unode.prepare_receiving_socket(5522);
     let enc_connect_msg = unode.receive_broadcast_data();
-    let inv_code_hash = openssl::hash::hash(MessageDigest::sha256(), &self.invitation_code.as_bytes())?;
-    let connect_msg = openssl::symm::decrypt(Cipher::aes_256_cbc(), &inv_code_hash, None, &enc_connect_msg)?;
+    let inv_code = hex::decode(self.invitation_code)?;
+    let connect_msg = crypto::decrypt_msg(&enc_connect_msg, &inv_code)?;
     let request = ConnectRequest::parse_from_bytes(&connect_msg)?;
-    let mut mac = [0u8; CIPHER_LEN];
-    pbkdf2_hmac(&request.eph_key, &iv, HMAC_ITER, MessageDigest::sha256(), &mut mac)?;
+    let mac = crypto::compute_mac(&request.eph_key);
 
     if request.inv_code_mac != mac {
       println!("Invitation code does not match");
@@ -76,54 +66,39 @@ impl CryptoNode {
     Ok(())
   }
 
-  pub fn connect(self, unode: &mut udp_node::UdpNode, inv_code: String) -> Result<()> {
-    let iv: [u8; 8] = [7; 8];
+  pub fn connect(self, unode: &mut udp_node::UdpNode, inv_code_hex: String) -> std::result::Result<(), Box<dyn std::error::Error> > {
     unode.prepare_broadcast_socket();
 
-    let mut eph_key= [0; CIPHER_LEN];
-    openssl::rand::rand_bytes(&mut eph_key).unwrap();
-    let mut mac= [0; CIPHER_LEN];
-    pbkdf2_hmac(&eph_key, &iv, HMAC_ITER, MessageDigest::sha256(), &mut mac)?;
-    let msg = ConnectRequest {
+    let eph_key = Self::draw_ephemeral_key();
+    let mac = crypto::compute_mac(&eph_key);
+    let con_req = ConnectRequest {
       eph_key: eph_key.to_vec(),
       inv_code_mac: mac.to_vec(),
       special_fields: SpecialFields::default()
     };
-    let mut v: Vec<u8> = Vec::new();
-    msg.write_to_vec(&mut v)?;
-
-    let inv_code_hash = openssl::hash::hash(MessageDigest::sha256(), inv_code.as_bytes())?;
-    let enc_msg= openssl::symm::encrypt(Cipher::aes_256_cbc(), &inv_code_hash, None, &v)?;
-    unode.broadcast_message(&enc_msg, self.port)?;
+    let v = Self::encrypt_connect_request(&con_req, &inv_code_hex)?;
+    unode.broadcast_message(&v, self.port)?;
     let mut buf  = [0u8; 1024];
     let answer = unode.receive_data(&mut buf)?;
     Ok(())
   }
 
-  pub fn generate_random_invitation_code() -> String {
-    let bytes = CryptoNode::random_bytes(8);
-    hex::encode(bytes)
+  pub fn encrypt_connect_request(msg: &ConnectRequest, inv_code_hex: &String) -> std::result::Result<Vec<u8>, Error> {
+    let mut v: Vec<u8> = Vec::new();
+    msg.write_to_vec(&mut v)?;
+    let k = hex::decode(inv_code_hex).unwrap();
+    crypto::encrypt_msg(&v, &k)
   }
 
   pub fn draw_ephemeral_key() -> Vec<u8> {
-    return CryptoNode::random_bytes(16);
+    let mut eph_key= [0; crypto::CIPHER_LEN];
+    openssl::rand::rand_bytes(&mut eph_key).unwrap();
+    eph_key.to_vec()
   }
 
-  pub fn random_bytes(n: u16) -> Vec<u8> {
-    (0..n).map(|_| { random::<u8>() }).collect()
-  }
-
-  pub fn encrypt_ephemeral_key(&self, inv_code: &String) -> Vec<u8> {
-    let inv_code_hash = openssl::hash::hash(MessageDigest::sha256(), inv_code.as_bytes()).unwrap();
-    return aes128_encrypt(&self.eph, &inv_code_hash);
-  }
-
-  pub fn decrypt_ephmemeral_key(&self, eph_key: &Vec<u8>, inv_code: &String) -> Vec<u8> {
-    //TODO: check conn_proc.broadcast_code CRC
-    println!("lengths: {}, {}", eph_key.len(), inv_code.len());
-    let inv_code_bytes = hex::decode(inv_code).unwrap();
-    let decrypted = aes128_decrypt(&eph_key, &inv_code_bytes);
-    return decrypted;
+  pub fn generate_random_invitation_code() -> String {
+    let bytes = crypto::random_bytes(8);
+    hex::encode(bytes)
   }
 
   fn load_config_from_disc(config_dir: &PathBuf) -> Result<Config> {
@@ -139,7 +114,7 @@ impl CryptoNode {
     let mut config_file = Self::create_or_open_config(config_dir)?;
     let conf = Config {
       sym_key: node.sym_key.clone(),
-      generated: 0,
+      generated: 0, //todo: time
       special_fields: SpecialFields::default()
     };
     let mut v: Vec<u8> = Vec::new();
@@ -164,29 +139,6 @@ impl CryptoNode {
 
   fn io_error(msg: &str) -> Error {
     Error::new(ErrorKind::NotFound, msg)
-  }
-
-  fn encrypt_sym_key(pin: &str, sym_key: &[u8]) -> Result<[u8; CIPHER_LEN + 8]> {
-    let iv: [u8; 8] = [7; 8];
-    let mut key = [0; CIPHER_LEN];
-    pbkdf2_hmac(pin.as_bytes(), &iv, HMAC_ITER, MessageDigest::sha256(), &mut key)?;
-    let ak: AesKey = AesKey::new_encrypt(&key).unwrap();
-    let mut enc_buf = [0; CIPHER_LEN + 8];
-    openssl::aes::wrap_key(&ak, Some(iv), &mut enc_buf, &sym_key)
-      .or(Err(Error::new(ErrorKind::InvalidData, "Could not wrap key")))?;
-    Ok(enc_buf)
-  }
-
-  fn decrypt_sym_key(pin: &str, sym_key: &[u8]) -> Result<[u8; 32]> {
-    let iv: [u8; 8] = [7; 8];
-    let mut key = [0; CIPHER_LEN];
-    pbkdf2_hmac(pin.as_bytes(), &iv, HMAC_ITER, MessageDigest::sha256(), &mut key)?;
-
-    let ak: AesKey = AesKey::new_decrypt(&key).unwrap();
-    let mut dec_buf = [0; CIPHER_LEN];
-    openssl::aes::unwrap_key(&ak, Some(iv), &mut dec_buf, sym_key)
-      .or(Err(Error::new(ErrorKind::InvalidData, "Could not decipher sym key")))?;
-    Ok(dec_buf)
   }
 
   // pub const fn new(rsa: Rsa<Private>) -> CryptoNode {

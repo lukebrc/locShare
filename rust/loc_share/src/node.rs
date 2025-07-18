@@ -37,21 +37,21 @@ impl Node {
     println!("start_connecting_to_existing_node");
     self.crypto.invitation_code = inv_code.clone();
     self.udp.prepare_broadcast_socket();
-    self.crypto.eph = CryptoNode::draw_ephemeral_key();
-    let encrypted_eph = self.crypto.encrypt_ephemeral_key(inv_code);
-    // let broadcast_code = BroadcastCode::new(&enc_pub_key);
-    println!("broadcasting message of {} bytes", self.crypto.eph.len());
-    self.udp.broadcast_message(&encrypted_eph, DEFAULT_PORT);
+    // self.crypto.eph = CryptoNode::draw_ephemeral_key();
+    // let encrypted_eph = self.crypto.encrypt_ephemeral_key(inv_code);
+    // // let broadcast_code = BroadcastCode::new(&enc_pub_key);
+    // println!("broadcasting message of {} bytes", self.crypto.eph.len());
+    // self.udp.broadcast_message(&encrypted_eph, DEFAULT_PORT);
     //println!("Received encrypted pub_key: {:?}", enc_pub_key);
     //TODO: check broadcast CRC code
     // return broadcast_code.encrypted_msg;
   }
 
-  pub fn continue_connecting_to_node(&mut self, enc_eph_key: &Vec<u8>, invitation_code: &String) -> Vec<u8> {
-    println!("continue_connecting_to_node");
-    self.crypto.invitation_code = invitation_code.clone();
-    return self.crypto.decrypt_ephmemeral_key(&enc_eph_key, invitation_code);
-  }
+  // pub fn continue_connecting_to_node(&mut self, enc_eph_key: &Vec<u8>, invitation_code: &String) -> Vec<u8> {
+  //   println!("continue_connecting_to_node");
+  //   self.crypto.invitation_code = invitation_code.clone();
+  //   return self.crypto.decrypt_ephmemeral_key(&enc_eph_key, invitation_code);
+  // }
 
   fn send_number(&self, num: u128) {
     println!("Sending number: {}", num);
@@ -129,13 +129,13 @@ mod tests {
       );
       //new_node.udp.prepare_receiving_socket(DEFAULT_PORT);
 
-      new_node.start_connecting_to_existing_node(&inv_code_copy);
+      // new_node.start_connecting_to_existing_node(&inv_code_copy);
 
-      let enc_eph_key = new_node.receive_broadcast_message();
-      println!("Received enc_eph_key {:?}", enc_eph_key);
-      //conn_process.decrypted_eph_key = new_node.continue_connecting_to_node(&mut conn_process);
-      let decrypted_eph_key = new_node.continue_connecting_to_node(&enc_eph_key, &inv_code_copy);
-      sender.send(new_node).unwrap();
+      // let enc_eph_key = new_node.receive_broadcast_message();
+      // println!("Received enc_eph_key {:?}", enc_eph_key);
+      // //conn_process.decrypted_eph_key = new_node.continue_connecting_to_node(&mut conn_process);
+      // let decrypted_eph_key = new_node.continue_connecting_to_node(&enc_eph_key, &inv_code_copy);
+      // sender.send(new_node).unwrap();
     });
 
     return receiver;

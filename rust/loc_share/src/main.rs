@@ -31,17 +31,21 @@ fn main() {
   let loc_share_dir = get_loc_share_dir(args.config_dir).unwrap();
 
   let mut unode = udp_node::UdpNode::new(my_ip, broadcast_addr);
-  let my_node = match create_crypto_node(&loc_share_dir) {
+  let my_node = match create_crypto_node(&loc_share_dir, &args.inv_code) {
     Ok(n) => n,
     Err(msg) => panic!("{}", msg)
   };
 
-  if args.inv_code.is_some() {
-    my_node.connect(&mut unode, args.inv_code.unwrap()).unwrap();
+  let res = if args.connect {
+    my_node.connect(&mut unode, args.inv_code.unwrap())
   }
   else {
     println!("Listening with invitation_code {}", my_node.invitation_code);
-    my_node.listen(&mut unode).unwrap();
+    my_node.listen(&mut unode)
+  };
+
+  if res.is_err() {
+    panic!("Error transporting key: {}", res.unwrap_err());
   }
 
   //let client = node::Node{udp: unode, crypto: cnode};
@@ -70,20 +74,24 @@ fn get_loc_share_dir(config_dir: Option<String>) -> Result<PathBuf> {
   }
 }
 
-fn create_crypto_node(config_dir: &PathBuf) -> Result<CryptoNode> {
+fn create_crypto_node(config_dir: &PathBuf, inv_code_opt: &Option<String>) -> Result<CryptoNode> {
+  let inv_code = match inv_code_opt {
+    Some(ic) => ic.clone(),
+    None => CryptoNode::generate_random_invitation_code()
+  };
   if ! CryptoNode::has_config(config_dir) {
     println!("Create PIN to your node");
     let mut line = String::new();
     std::io::stdin().read_line(&mut line)?;
     let pin = line.trim_end();
-    CryptoNode::create_new(config_dir, pin)
+    CryptoNode::create_new(config_dir, pin, inv_code)
   }
   else {
     println!("Enter PIN to your node");
     let mut line = String::new();
     std::io::stdin().read_line(&mut line)?;
     let pin = line.trim_end();
-    CryptoNode::load_from_disc(config_dir, pin)
+    CryptoNode::load_from_disc(config_dir, pin, inv_code)
   }
 }
 

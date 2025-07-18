@@ -2,7 +2,7 @@ use std::net::UdpSocket;
 use std::str;
 use std::io::{Result, Error, ErrorKind};
 
-const MAX_MSG: usize = 32;
+const MAX_MSG: usize = 2048;
 
 pub struct UdpNode {
   ip_addr: [u8; 4],
