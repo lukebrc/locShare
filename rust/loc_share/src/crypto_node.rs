@@ -19,7 +19,7 @@ const HMAC_ITER: usize = 1024;
 
 pub struct CryptoNode {
   pub sym_key: Vec<u8>,
-  pub invitation_code: Vec<u8>,
+  pub invitation_code: String,
   pub eph: Vec<u8>,
   pub port: u32,
   //pub g: Vec<u8>,
@@ -40,7 +40,7 @@ impl CryptoNode {
 
     Ok(CryptoNode {
       sym_key: dec_buf.to_vec(),
-      invitation_code: Vec::new(),
+      invitation_code: String::new(),
       eph: Vec::new(),
       port: 5522,
     })
@@ -52,7 +52,7 @@ impl CryptoNode {
     let enc_sym_key = Self::encrypt_sym_key(pin, &sym_key)?;
     let node = CryptoNode {
        sym_key: enc_sym_key.to_vec(),
-       invitation_code: Vec::new(),
+       invitation_code: String::new(),
        eph: Vec::new(),
        port: 5522
     };
@@ -64,7 +64,8 @@ impl CryptoNode {
     let iv: [u8; 8] = [7; 8];
     unode.prepare_receiving_socket(5522);
     let enc_connect_msg = unode.receive_broadcast_data();
-    let connect_msg = openssl::symm::decrypt(Cipher::aes_256_cbc(), &self.invitation_code, None, &enc_connect_msg)?;
+    let inv_code_hash = openssl::hash::hash(MessageDigest::sha256(), &self.invitation_code.as_bytes())?;
+    let connect_msg = openssl::symm::decrypt(Cipher::aes_256_cbc(), &inv_code_hash, None, &enc_connect_msg)?;
     let request = ConnectRequest::parse_from_bytes(&connect_msg)?;
     let mut mac = [0u8; CIPHER_LEN];
     pbkdf2_hmac(&request.eph_key, &iv, HMAC_ITER, MessageDigest::sha256(), &mut mac)?;
@@ -90,15 +91,18 @@ impl CryptoNode {
     };
     let mut v: Vec<u8> = Vec::new();
     msg.write_to_vec(&mut v)?;
-    let enc_msg= openssl::symm::encrypt(Cipher::aes_256_cbc(), inv_code.as_bytes(), None, &v)?;
+
+    let inv_code_hash = openssl::hash::hash(MessageDigest::sha256(), inv_code.as_bytes())?;
+    let enc_msg= openssl::symm::encrypt(Cipher::aes_256_cbc(), &inv_code_hash, None, &v)?;
     unode.broadcast_message(&enc_msg, self.port)?;
     let mut buf  = [0u8; 1024];
     let answer = unode.receive_data(&mut buf)?;
     Ok(())
   }
 
-  pub fn generate_random_invitation_code() -> Vec<u8> {
-    return CryptoNode::random_bytes(16);
+  pub fn generate_random_invitation_code() -> String {
+    let bytes = CryptoNode::random_bytes(8);
+    hex::encode(bytes)
   }
 
   pub fn draw_ephemeral_key() -> Vec<u8> {
@@ -106,17 +110,19 @@ impl CryptoNode {
   }
 
   pub fn random_bytes(n: u16) -> Vec<u8> {
-    return (0..n).map(|_| { random::<u8>() }).collect();
+    (0..n).map(|_| { random::<u8>() }).collect()
   }
 
-  pub fn encrypt_ephemeral_key(&self, inv_code: &Vec<u8>) -> Vec<u8> {
-    return aes128_encrypt(&self.eph, inv_code);
+  pub fn encrypt_ephemeral_key(&self, inv_code: &String) -> Vec<u8> {
+    let inv_code_hash = openssl::hash::hash(MessageDigest::sha256(), inv_code.as_bytes()).unwrap();
+    return aes128_encrypt(&self.eph, &inv_code_hash);
   }
 
-  pub fn decrypt_ephmemeral_key(&self, eph_key: &Vec<u8>, inv_code: &Vec<u8>) -> Vec<u8> {
+  pub fn decrypt_ephmemeral_key(&self, eph_key: &Vec<u8>, inv_code: &String) -> Vec<u8> {
     //TODO: check conn_proc.broadcast_code CRC
     println!("lengths: {}, {}", eph_key.len(), inv_code.len());
-    let decrypted = aes128_decrypt(&eph_key, &inv_code);
+    let inv_code_bytes = hex::decode(inv_code).unwrap();
+    let decrypted = aes128_decrypt(&eph_key, &inv_code_bytes);
     return decrypted;
   }
 
@@ -217,14 +223,14 @@ mod tests {
   #[test]
   fn test_draw_and_encrypt_ephemeral_key() {
     let sym_key= b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
-    let inv_code= b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
+    let inv_code= "12345678".to_string();
     let eph_key = CryptoNode::draw_ephemeral_key();
-    let inv_code_vec = inv_code.to_vec();
     let cnode = CryptoNode {
       sym_key: sym_key.to_vec(),
-      invitation_code: inv_code_vec,
+      invitation_code: inv_code.clone(),
       eph: eph_key,
+      port: 0
     };
-    let enc_eph_key = cnode.encrypt_ephemeral_key(&inv_code.to_vec());
+    let enc_eph_key = cnode.encrypt_ephemeral_key(&inv_code);
   }
 }

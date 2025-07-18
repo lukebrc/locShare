@@ -33,7 +33,7 @@ impl Node {
   }
 
   // waits for encrypted invitation code and returns it
-  pub fn start_connecting_to_existing_node(&mut self, inv_code: &Vec<u8>) {
+  pub fn start_connecting_to_existing_node(&mut self, inv_code: &String) {
     println!("start_connecting_to_existing_node");
     self.crypto.invitation_code = inv_code.clone();
     self.udp.prepare_broadcast_socket();
@@ -47,10 +47,10 @@ impl Node {
     // return broadcast_code.encrypted_msg;
   }
 
-  pub fn continue_connecting_to_node(&mut self, enc_eph_key: &Vec<u8>, invitation_code: &Vec<u8>) -> Vec<u8> {
+  pub fn continue_connecting_to_node(&mut self, enc_eph_key: &Vec<u8>, invitation_code: &String) -> Vec<u8> {
     println!("continue_connecting_to_node");
     self.crypto.invitation_code = invitation_code.clone();
-    return self.crypto.decrypt_ephmemeral_key(&enc_eph_key, &invitation_code);
+    return self.crypto.decrypt_ephmemeral_key(&enc_eph_key, invitation_code);
   }
 
   fn send_number(&self, num: u128) {
@@ -83,21 +83,22 @@ mod tests {
   #[test]
   fn add_new_node() {
     let sym_key= b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
-    let inv_code= b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
+    let inv_code= "12345678".to_string();
     let eph_key = CryptoNode::draw_ephemeral_key();
-    let inv_code_vec = inv_code.to_vec();
     let cnode = CryptoNode {
       sym_key: sym_key.to_vec(),
-      invitation_code: inv_code_vec.clone(),
+      invitation_code: inv_code.clone(),
       eph: eph_key.clone(),
+      port: 0
     };
 
     let old_udp_node = UdpNode::new([127,0,0,1], [127,0,0,1]);
 
     let old_crypto_node = CryptoNode {
       sym_key: sym_key.to_vec(),
-      invitation_code: inv_code_vec.clone(),
+      invitation_code: inv_code.clone(),
       eph: eph_key.clone(),
+      port: 0
     };
 
     let mut old_node: Node = Node{
@@ -118,7 +119,7 @@ mod tests {
     let new_node = receiver.recv().unwrap();
   }
 
-  fn new_node_thread(cnode: CryptoNode, invitation_code: &Vec<u8>) -> std::sync::mpsc::Receiver<Node> {
+  fn new_node_thread(cnode: CryptoNode, invitation_code: &String) -> std::sync::mpsc::Receiver<Node> {
     let (sender, receiver) = channel();
     let inv_code_copy = invitation_code.clone();
     let child_thread = thread::spawn(move || {

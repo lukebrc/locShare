@@ -40,6 +40,7 @@ fn main() {
     my_node.connect(&mut unode, args.inv_code.unwrap()).unwrap();
   }
   else {
+    println!("Listening with invitation_code {}", my_node.invitation_code);
     my_node.listen(&mut unode).unwrap();
   }
 
