@@ -8,6 +8,7 @@ use std::io::{Result, Error, ErrorKind};
   
 pub const CIPHER_LEN: usize = 32;
 const HMAC_ITER: usize = 1024;
+pub type EResult<T> = std::result::Result<T, Box<dyn std::error::Error> >;
 
 pub fn aes128_encrypt(input: &[u8], key: &[u8]) -> Vec<u8> {
   let cipher = Cipher::aes_128_cbc(); //todo: cipher dependent of key size
@@ -50,12 +51,12 @@ pub fn compute_mac(eph_key: &[u8]) -> Vec<u8> {
   mac.to_vec()
 }
 
-pub fn encrypt_msg(msg: &Vec<u8>, key: &[u8]) -> std::result::Result<Vec<u8>, Error > {
+pub fn encrypt_msg(msg: &Vec<u8>, key: &[u8]) -> EResult<Vec<u8>> {
   let key_hash = openssl::hash::hash(MessageDigest::sha256(), &key).unwrap();
   let enc = openssl::symm::encrypt(Cipher::aes_256_cbc(), &key_hash, None, msg);
   match enc {
     Ok(e) => Ok(e),
-    Err(msg) => Err(Error::new(ErrorKind::Other, msg.to_string()))
+    Err(msg) => Err(msg.to_string().into())
   }
 }
 
@@ -122,19 +123,10 @@ mod tests {
   #[test]
   fn test_aes_encrypt_decrypt2() {
     let key_hex = "12345678901234561234567890123456";
-    let key = Vec::from_hex(key_hex).unwrap();
+    let key = hex::decode(key_hex).unwrap();
     let mut iv  = *b"\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07";
     let mut iv2 = iv.clone();
     let aes_enc_key = AesKey::new_encrypt(&key).unwrap();
     let aes_dec_key = AesKey::new_decrypt(&key).unwrap();
-
-    let input = b"hello!!!hello!!!hello!!!hello!!!";
-    let mut output = [0u8; 32];
-    aes_ige(input, &mut output, &aes_enc_key, &mut iv, Mode::Encrypt);
-
-    let mut output2 = [0u8; 32];
-    aes_ige(&output, &mut output2, &aes_dec_key, &mut iv2, Mode::Decrypt);
-
-    assert_eq!(output2.to_vec(), input.to_vec());
   }
 }

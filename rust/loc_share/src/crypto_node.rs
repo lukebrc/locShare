@@ -69,21 +69,29 @@ impl CryptoNode {
   pub fn connect(self, unode: &mut udp_node::UdpNode, inv_code_hex: String) -> std::result::Result<(), Box<dyn std::error::Error> > {
     unode.prepare_broadcast_socket();
 
-    let eph_key = Self::draw_ephemeral_key();
-    let mac = crypto::compute_mac(&eph_key);
-    let con_req = ConnectRequest {
-      eph_key: eph_key.to_vec(),
-      inv_code_mac: mac.to_vec(),
-      special_fields: SpecialFields::default()
-    };
-    let v = Self::encrypt_connect_request(&con_req, &inv_code_hex)?;
-    unode.broadcast_message(&v, self.port)?;
+    let enc_con_req = Self::create_encrypted_connect_request(inv_code_hex)?;
+    unode.broadcast_message(&enc_con_req, self.port)?;
     let mut buf  = [0u8; 1024];
     let answer = unode.receive_data(&mut buf)?;
     Ok(())
   }
 
-  pub fn encrypt_connect_request(msg: &ConnectRequest, inv_code_hex: &String) -> std::result::Result<Vec<u8>, Error> {
+  pub fn create_encrypted_connect_request(inv_code_hex: String) -> crypto::EResult< Vec<u8> > {
+    let eph_key = Self::draw_ephemeral_key();
+    let con_req = Self::create_connect_request(eph_key);
+    Self::encrypt_connect_request(&con_req, inv_code_hex)
+  }
+
+  pub fn create_connect_request(eph_key: Vec<u8>) -> ConnectRequest {
+    let mac = crypto::compute_mac(&eph_key);
+    ConnectRequest {
+      eph_key: eph_key.to_vec(),
+      inv_code_mac: mac.to_vec(),
+      special_fields: SpecialFields::default()
+    }
+  }
+
+  pub fn encrypt_connect_request(msg: &ConnectRequest, inv_code_hex: String) -> crypto::EResult<Vec<u8>> {
     let mut v: Vec<u8> = Vec::new();
     msg.write_to_vec(&mut v)?;
     let k = hex::decode(inv_code_hex).unwrap();
@@ -183,6 +191,6 @@ mod tests {
       eph: eph_key,
       port: 0
     };
-    let enc_eph_key = cnode.encrypt_ephemeral_key(&inv_code);
+    let encrypted_req = CryptoNode::create_encrypted_connect_request(inv_code);
   }
 }
